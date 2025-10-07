@@ -1,0 +1,45 @@
+{
+  "name": "short-video-feed",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "lhci": "lhci autorun"
+  },
+  "dependencies": {
+    "next": "^14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@tanstack/react-query": "^5.17.19",
+    "zustand": "^4.5.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.1",
+    "class-variance-authority": "^0.7.0",
+    "lucide-react": "^0.316.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5",
+    "autoprefixer": "^10.0.1",
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0",
+    "@tailwindcss/forms": "^0.5.7",
+    "eslint": "^8",
+    "eslint-config-next": "14.1.0",
+    "vitest": "^1.2.2",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@playwright/test": "^1.41.2",
+    "@lhci/cli": "^0.13.0"
+  }
+}
+

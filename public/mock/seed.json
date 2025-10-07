@@ -1,0 +1,226 @@
+{
+  "videos": [
+    {
+      "id": "v_001",
+      "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "poster": "/posters/1.jpg",
+      "duration": 596.5,
+      "creator": {
+        "id": "u_1",
+        "handle": "@bigbuck",
+        "avatar": "/avatars/1.png",
+        "name": "Big Buck"
+      },
+      "caption": "🐰 Big Buck Bunny - A classic animation! #animation #cute #bunny",
+      "music": {
+        "title": "Original Sound",
+        "artist": "Big Buck Bunny"
+      },
+      "stats": {
+        "likes": 45200,
+        "comments": 892,
+        "shares": 234
+      },
+      "captionsVtt": "/captions/1.vtt"
+    },
+    {
+      "id": "v_002",
+      "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "poster": "/posters/2.jpg",
+      "duration": 653.8,
+      "creator": {
+        "id": "u_2",
+        "handle": "@dreamweaver",
+        "avatar": "/avatars/2.png",
+        "name": "Dream Weaver"
+      },
+      "caption": "Elephants Dream - Surreal 3D journey 🐘✨ #3d #animation #art",
+      "music": {
+        "title": "Dream Sequence",
+        "artist": "Orange Studios"
+      },
+      "stats": {
+        "likes": 32100,
+        "comments": 567,
+        "shares": 189
+      }
+    },
+    {
+      "id": "v_003",
+      "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "poster": "/posters/3.jpg",
+      "duration": 15.0,
+      "creator": {
+        "id": "u_3",
+        "handle": "@techreview",
+        "avatar": "/avatars/3.png",
+        "name": "Tech Review"
+      },
+      "caption": "For Bigger Blazes 🔥 Amazing visuals! #tech #visual #fire",
+      "music": {
+        "title": "Epic Beat",
+        "artist": "DJ Fire"
+      },
+      "stats": {
+        "likes": 67800,
+        "comments": 1234,
+        "shares": 456
+      }
+    },
+    {
+      "id": "v_004",
+      "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      "poster": "/posters/4.jpg",
+      "duration": 15.0,
+      "creator": {
+        "id": "u_4",
+        "handle": "@traveler",
+        "avatar": "/avatars/4.png",
+        "name": "World Traveler"
+      },
+      "caption": "Escape to paradise 🌴🌊 #travel #beach #vacation",
+      "music": {
+        "title": "Island Vibes",
+        "artist": "Tropical Sounds"
+      },
+      "stats": {
+        "likes": 89300,
+        "comments": 2341,
+        "shares": 890
+      }
+    },
+    {
+      "id": "v_005",
+      "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      "poster": "/posters/5.jpg",
+      "duration": 15.0,
+      "creator": {
+        "id": "u_5",
+        "handle": "@funtime",
+        "avatar": "/avatars/5.png",
+        "name": "Fun Time"
+      },
+      "caption": "For Bigger Fun! 🎉🎊 Let's party! #fun #party #celebration",
+      "music": {
+        "title": "Party Time",
+        "artist": "DJ Party"
+      },
+      "stats": {
+        "likes": 54200,
+        "comments": 987,
+        "shares": 345
+      }
+    },
+    {
+      "id": "v_006",
+      "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+      "poster": "/posters/6.jpg",
+      "duration": 15.0,
+      "creator": {
+        "id": "u_6",
+        "handle": "@carguy",
+        "avatar": "/avatars/6.png",
+        "name": "Car Enthusiast"
+      },
+      "caption": "Epic joyride! 🚗💨 #cars #drive #speed",
+      "music": {
+        "title": "Highway Groove",
+        "artist": "Drive Band"
+      },
+      "stats": {
+        "likes": 72400,
+        "comments": 1456,
+        "shares": 567
+      }
+    },
+    {
+      "id": "v_007",
+      "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+      "poster": "/posters/7.jpg",
+      "duration": 15.0,
+      "creator": {
+        "id": "u_7",
+        "handle": "@icecream",
+        "avatar": "/avatars/7.png",
+        "name": "Sweet Treats"
+      },
+      "caption": "Meltdown alert! 🍦😋 #icecream #dessert #sweet",
+      "music": {
+        "title": "Sweet Dreams",
+        "artist": "Sugar Pop"
+      },
+      "stats": {
+        "likes": 43600,
+        "comments": 678,
+        "shares": 234
+      }
+    },
+    {
+      "id": "v_008",
+      "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+      "poster": "/posters/8.jpg",
+      "duration": 888.0,
+      "creator": {
+        "id": "u_8",
+        "handle": "@sintel",
+        "avatar": "/avatars/8.png",
+        "name": "Sintel Studios"
+      },
+      "caption": "Sintel - An epic fantasy adventure 🗡️🐉 #fantasy #adventure #animation",
+      "music": {
+        "title": "Epic Score",
+        "artist": "Blender Foundation"
+      },
+      "stats": {
+        "likes": 128400,
+        "comments": 3456,
+        "shares": 1234
+      }
+    }
+  ],
+  "comments": {
+    "v_001": [
+      {
+        "id": "c_001",
+        "userId": "u_10",
+        "username": "bunny_lover",
+        "userAvatar": "/avatars/user1.png",
+        "text": "This is so cute! 🐰❤️",
+        "timestamp": 1704067200000,
+        "likes": 45
+      },
+      {
+        "id": "c_002",
+        "userId": "u_11",
+        "username": "animation_fan",
+        "userAvatar": "/avatars/user2.png",
+        "text": "Classic animation, never gets old!",
+        "timestamp": 1704070800000,
+        "likes": 32
+      }
+    ],
+    "v_002": [
+      {
+        "id": "c_003",
+        "userId": "u_12",
+        "username": "art_lover",
+        "userAvatar": "/avatars/user3.png",
+        "text": "The visuals are mind-blowing! 🤯",
+        "timestamp": 1704074400000,
+        "likes": 78
+      }
+    ],
+    "v_003": [
+      {
+        "id": "c_004",
+        "userId": "u_13",
+        "username": "tech_geek",
+        "userAvatar": "/avatars/user4.png",
+        "text": "Fire effects are 🔥🔥🔥",
+        "timestamp": 1704078000000,
+        "likes": 56
+      }
+    ]
+  }
+}
+
