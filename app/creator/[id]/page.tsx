@@ -42,6 +42,7 @@ export default function CreatorProfilePage() {
   const [tab, setTab] = useState<ProfileTab>('videos');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [messagePending, setMessagePending] = useState(false);
+  const [messageError, setMessageError] = useState<string | null>(null);
 
   const isFollowing = following ?? data?.isFollowing ?? false;
   const isSelf = Boolean(me?.id && data?.creator.id === me.id);
@@ -77,12 +78,16 @@ export default function CreatorProfilePage() {
       return;
     }
     setMessagePending(true);
+    setMessageError(null);
     try {
       const conversation = await openConversation(data.creator.id);
       await queryClient.invalidateQueries({ queryKey: ['conversations'] });
       router.push(`/inbox/c/${encodeURIComponent(conversation.id)}`);
     } catch (err) {
       console.error(err);
+      setMessageError(
+        err instanceof Error ? err.message : 'Couldn’t start conversation'
+      );
     } finally {
       setMessagePending(false);
     }
@@ -188,6 +193,9 @@ export default function CreatorProfilePage() {
               {me?.isGuest ? 'Sign in to message' : 'Message'}
             </button>
           </div>
+        )}
+        {messageError && !isSelf && (
+          <p className="mt-2 text-center text-xs text-rose-300">{messageError}</p>
         )}
         {isSelf && me && <ProfileAuthPanel user={me} />}
       </section>

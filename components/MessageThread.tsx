@@ -220,7 +220,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
 
       <form
         onSubmit={onSubmit}
-        className="flex-shrink-0 border-t border-white/10 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="flex-shrink-0 border-t border-white/10 px-3 py-2"
       >
         {isGuest ? (
           <p className="py-2 text-center text-xs text-white/45">

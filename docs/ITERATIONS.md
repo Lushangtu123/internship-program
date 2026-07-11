@@ -339,7 +339,16 @@
   - `preferInboxTab` / `inboxHref`：仅私信未读 → Messages，否则 Activity
   - BottomNav 与裸 `/inbox` 共用规则；tab 旁显示未读小圆点
 - **结果**：提交：`517cb6d`；`npm test` 80 通过。
-- **后续**：共享/多实例数据库；或其他产品 polish。
+- **后续**：会话页底栏；共享数据库。
+
+### 2026-07-11 — Step 32：私信会话底栏与 Message 错误提示
+
+- **问题**：`/inbox/c/[id]` 没有底栏，像死胡同；主页 Message 失败只打 console。
+- **方法**：
+  - 会话页接入 `BottomNav` + `UploadSheet`，内容区 `pb-14` 避开底栏
+  - 创作者页 `messageError` 行内展示
+- **结果**：提交：`05fccbd`；`npm test` 80 通过。
+- **后续**：共享/多实例数据库；或其他 polish。
 
 ---
 

@@ -189,6 +189,11 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 - Bottom nav → Messages when only DMs are unread (activity unread still opens Activity)
 - Bare `/inbox` auto-lands on Messages in the same case; tabs show unread dots
 
+## Step 32 — DM thread chrome + Message errors ✅
+
+- Conversation page shares BottomNav + Create sheet with the rest of the app
+- Creator **Message** failures show an inline error (not only console)
+
 ## Later ideas (not scheduled)
 
 - Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)
