@@ -201,7 +201,7 @@
 - **方法**：
   - Step 27：`PATCH/DELETE /api/videos/[id]`（仅作者）；Me 作品格 `ManagedVideoGrid` 管理面板
   - Step 28：`GET /api/search?q=` + `/search` 页；信息流顶栏搜索入口
-- **结果**：作者可管自己的片；可按作者/文案搜索。提交：见本条合入 commit
+- **结果**：作者可管自己的片；可按作者/文案搜索。提交：`001bb7c`
 - **后续**：异步上传 / 真数据库 / 个性化 / ABR 仍走实验分支。
 
 ---
