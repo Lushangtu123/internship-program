@@ -367,6 +367,15 @@
   - `markConversationRead` 把同 `conversationId` 的 `message` 通知标已读
   - 会话页打开时刷新 `notifications` 查询
 - **结果**：提交：`0a181ad`；`npm test` 80 通过。
+- **后续**：打包完成 Ready 提示。
+
+### 2026-07-11 — Step 35：打包完成 Ready 提示
+
+- **问题**：Processing… 消失后用户不知道 HLS 是否已就绪。
+- **方法**：
+  - `packagingStatusToast(prev, next)`：processing→ready 显示 Ready（约 2.2s）
+  - VideoCard 左上角角标；失败仍提示
+- **结果**：提交：`6dd3896`；`npm test` 83 通过。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---
