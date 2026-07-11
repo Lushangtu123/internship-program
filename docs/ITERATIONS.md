@@ -231,7 +231,7 @@
   - `ObjectStore`：`put` / `putFile` / `putDirectory` / `publicUrl`
   - `LocalObjectStore`（默认）与 `S3CompatibleObjectStore`（SigV4 PutObject，无 AWS SDK）
   - `STORAGE_DRIVER=local|s3` + `.env.example`；上传管线经 `getObjectStore()` 发布 progressive / poster / HLS
-- **结果**：见本条合入 commit。
+- **结果**：`333ac9c`。
 - **后续**：ABR；规范化 SQL 表结构；确认后可合 main。
 
 ---
