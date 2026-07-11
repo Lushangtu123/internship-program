@@ -133,7 +133,7 @@
   - `isDeepLinkExhausted`：无下一页且列表中无目标 id 时判定耗尽
   - Feed：展示顶部「Video not found」条，并 `router.replace('/')` 清掉失效 `v=`
   - 点 OK 关闭提示；新的 `?v=` 会重置提示
-- **结果**：失效深链有明确反馈，可继续刷 For You。提交：见本次 main
+- **结果**：失效深链有明确反馈，可继续刷 For You。提交：`ec1d3df`
 - **后续**：ABR / 对象存储等不确定项走实验分支。
 
 ---
