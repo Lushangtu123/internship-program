@@ -312,7 +312,16 @@
   - `conversationBus` 仍先本地 fan-out，再异步 publish；无 Redis 时行为不变
   - `.env.example` 补充说明
 - **结果**：提交：`efe79aa`；`npm test` 74 通过。
-- **后续**：确认后可合 main。
+- **后续**：合入 main。
+
+### 2026-07-11 — Step 29：实验栈合入 main
+
+- **问题**：个性化 / 异步上传 / SQLite / 对象存储 / ABR / 私信 / 增量 SQL / SSE / Redis 长期停在实验分支，main 缺少这些能力。
+- **方法**：
+  - 将 `cursor/personalize-async-upload-8729`（PR #17）merge 进 `main`
+  - `ROADMAP` 记为 Step 29；后续新实验再开分支
+- **结果**：待提交后回填。
+- **后续**：共享/多实例数据库；或继续产品 polish。
 
 ---
 

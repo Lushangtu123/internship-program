@@ -167,19 +167,17 @@ We improve toward a TikTok-like product **one step at a time**.
 - `GET /api/search?q=` over captions + creator usernames
 - `/search` page; search icon on the feed top bar
 
+## Step 29 — Productization stack (landed from experiment) ✅
+
+Merged from `cursor/personalize-async-upload-8729` / PR #17:
+
+- Personalized For You affinity boosts
+- Async HLS upload (`processing` → `ready` / `failed`)
+- SQLite WAL + normalized relational tables + incremental SQL ops
+- Object storage abstraction (`STORAGE_DRIVER=local|s3`)
+- Multi-bitrate ABR HLS ladder
+- Messaging MVP (Inbox Activity | Messages) + SSE Live + optional `REDIS_URL` fan-out
+
 ## Later ideas (not scheduled)
 
-- Horizontal SQLite / shared DB for multi-instance store (beyond single-node WAL)
-
-## Experimental (branch) — productization stack
-
-- Affinity boosts on For You from follows / liked creators / saves / plays
-- Upload returns progressive playback immediately (`status=processing`); HLS packages in background
-- Persist feed state in SQLite WAL (`data/store.sqlite`) with **normalized relational tables** (migrates legacy JSON / v1 blob)
-- Object storage abstraction: local `public/uploads` (default) or S3-compatible via `STORAGE_DRIVER=s3`
-- Multi-bitrate ABR HLS ladder (360p / 480p / 720p) with master playlist; hls.js caps level to player size
-- **Messaging MVP**: Inbox Activity | Messages; 1:1 DMs; creator Message button; unread badge combines notifications + DMs
-- **Incremental SQL ops** for engagement, DMs, auth, and video CRUD (full snapshot only for seed/migration)
-- **DM SSE realtime** (in-process bus; polling fallback; Live indicator)
-- **Optional Redis DM fan-out** (`REDIS_URL`) for multi-instance SSE
-- Branch: `cursor/personalize-async-upload-8729`
+- Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)
