@@ -54,15 +54,18 @@ function FeedPageContent() {
     }
   }, [searchParams]);
 
-  // Inbox / share deep links land on For You and close sheets
+  // Intentional video deep links close sheets and force For You.
+  // Do NOT run when a sheet is already open — arriving from Me as
+  // /?sheet=inbox causes URL-sync to add ?v=, which must not dismiss Inbox.
   useEffect(() => {
     if (!deepLinkId) return;
     if (deepLinkHandledRef.current === deepLinkId) return;
+    if (sheet) return;
+    if (searchParams.get('sheet')) return;
     urlSyncEnabledRef.current = false;
     setDeepLinkMissing(null);
     setFeedMode('foryou');
-    setSheet(null);
-  }, [deepLinkId]);
+  }, [deepLinkId, sheet, searchParams]);
 
   // Fetch videos with infinite scroll
   const {
@@ -284,6 +287,19 @@ function FeedPageContent() {
     setCommentsOpen(true);
   };
 
+  const clearSheetQuery = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('sheet')) return;
+    url.searchParams.delete('sheet');
+    const qs = url.searchParams.toString();
+    window.history.replaceState(
+      null,
+      '',
+      qs ? `${url.pathname}?${qs}` : url.pathname || '/'
+    );
+  }, []);
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center bg-black">
@@ -376,17 +392,25 @@ function FeedPageContent() {
       />
       <UploadSheet
         open={sheet === 'upload'}
-        onClose={() => setSheet(null)}
+        onClose={() => {
+          setSheet(null);
+          clearSheetQuery();
+        }}
         onUploaded={(videoId) => {
           setSheet(null);
+          clearSheetQuery();
           setFeedMode('foryou');
           deepLinkHandledRef.current = null;
+          urlSyncEnabledRef.current = false;
           router.replace(`/?v=${encodeURIComponent(videoId)}`);
         }}
       />
       <NotificationSheet
         open={sheet === 'inbox'}
-        onClose={() => setSheet(null)}
+        onClose={() => {
+          setSheet(null);
+          clearSheetQuery();
+        }}
       />
 
       {/* Comments Drawer */}

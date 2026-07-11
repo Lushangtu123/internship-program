@@ -166,3 +166,30 @@ test.describe('Deep link', () => {
     await expect(page.getByText('Video not found')).toHaveCount(0);
   });
 });
+
+test.describe('Me → Inbox', () => {
+  test('should keep Inbox open when arriving from profile with ?sheet=inbox', async ({
+    page,
+  }) => {
+    // Directly exercise the Me → Inbox handoff URL
+    await page.goto('/?sheet=inbox');
+    await expect(page.getByRole('heading', { name: /^Inbox$/i })).toBeVisible({
+      timeout: 10000,
+    });
+    // URL sync may add ?v= — Inbox must stay open
+    await page.waitForTimeout(1000);
+    await expect(page.getByRole('heading', { name: /^Inbox$/i })).toBeVisible();
+
+    // Also via bottom-nav Me then Inbox
+    await page.goto('/');
+    await page.locator('video').first().waitFor({ state: 'visible' });
+    await page.getByRole('link', { name: 'Profile', exact: true }).click();
+    await expect(page).toHaveURL(/\/creator\//);
+    await page.getByRole('navigation', { name: 'Main' }).getByText('Inbox', { exact: true }).click();
+    await expect(page.getByRole('heading', { name: /^Inbox$/i })).toBeVisible({
+      timeout: 10000,
+    });
+    await page.waitForTimeout(800);
+    await expect(page.getByRole('heading', { name: /^Inbox$/i })).toBeVisible();
+  });
+});
