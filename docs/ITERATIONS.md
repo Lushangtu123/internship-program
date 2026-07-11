@@ -204,6 +204,16 @@
 - **结果**：作者可管自己的片；可按作者/文案搜索。提交：`001bb7c`
 - **后续**：异步上传 / 真数据库 / 个性化 / ABR 仍走实验分支。
 
+### 2026-07-11 — 实验：个性化 For You + 异步 HLS 上传
+
+- **问题**：For You 对所有人同一排序；上传要等整段 ffmpeg HLS 结束才返回，体验卡住。
+- **方法**（实验分支，未合 main）：
+  - 个性化：`UserAffinity`（关注/点赞创作者/收藏/已赞/已播）叠在全局分上；`playsByUser` 由 engagement 写入
+  - 异步上传：`acceptUploadedVideo` 先落盘 progressive + poster → `status=processing` 立刻返回；后台 `enqueueHlsTranscode` 完成后续改 `src` 为 m3u8 / `ready`
+  - `GET /api/videos/[id]` 可查 packaging 状态
+- **结果**：见本分支 PR。提交：见本条合入 commit
+- **后续**：对象存储 / 真数据库 / ABR 仍实验；确认后可合 main。
+
 ---
 
 <!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->

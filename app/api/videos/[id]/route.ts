@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteVideo, updateVideoCaption } from '@/lib/db/feedStore';
+import {
+  deleteVideo,
+  getVideoById,
+  updateVideoCaption,
+} from '@/lib/db/feedStore';
 import { requireUser, withSession } from '@/lib/auth/session';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { token, isNewSession } = await requireUser(request);
+  const video = await getVideoById(params.id);
+  if (!video) {
+    return withSession(
+      NextResponse.json({ error: 'Video not found' }, { status: 404 }),
+      token,
+      isNewSession
+    );
+  }
+  return withSession(
+    NextResponse.json({
+      id: video.id,
+      status: video.status ?? 'ready',
+      src: video.src,
+      progressiveSrc: video.progressiveSrc,
+    }),
+    token,
+    isNewSession
+  );
+}
 
 export async function PATCH(
   request: NextRequest,

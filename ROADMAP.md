@@ -172,3 +172,9 @@ We improve toward a TikTok-like product **one step at a time**.
 - Multi-bitrate ABR ladders
 - Real object storage + CDN origin
 - Messaging / inbox
+
+## Experimental (branch) — Personalized For You + async HLS
+
+- Affinity boosts on For You from follows / liked creators / saves / plays
+- Upload returns progressive playback immediately (`status=processing`); HLS packages in background
+- Branch: `cursor/personalize-async-upload-8729`

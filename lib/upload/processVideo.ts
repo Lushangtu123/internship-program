@@ -131,6 +131,36 @@ export async function saveUploadedVideo(
   poster: string;
   duration: number;
   id: string;
+  absolutePath: string;
+}> {
+  const accepted = await acceptUploadedVideo(file, rootDir);
+  let src = accepted.progressiveSrc;
+  try {
+    src = await transcodeToHls(accepted.absolutePath, accepted.id, rootDir);
+  } catch (error) {
+    console.error('HLS transcode failed, using progressive source:', error);
+  }
+
+  return {
+    id: accepted.id,
+    src,
+    progressiveSrc: accepted.progressiveSrc,
+    poster: accepted.poster,
+    duration: accepted.duration,
+    absolutePath: accepted.absolutePath,
+  };
+}
+
+/** Fast path: persist file + poster + duration, skip HLS (async packaging). */
+export async function acceptUploadedVideo(
+  file: File,
+  rootDir = process.cwd()
+): Promise<{
+  progressiveSrc: string;
+  poster: string;
+  duration: number;
+  id: string;
+  absolutePath: string;
 }> {
   if (file.size <= 0) {
     throw Object.assign(new Error('Empty file'), { status: 400 });
@@ -169,18 +199,11 @@ export async function saveUploadedVideo(
   const duration = await probeDurationSeconds(videoPath);
   const progressiveSrc = `/uploads/videos/${videoName}`;
 
-  let src = progressiveSrc;
-  try {
-    src = await transcodeToHls(videoPath, id, rootDir);
-  } catch (error) {
-    console.error('HLS transcode failed, using progressive source:', error);
-  }
-
   return {
     id,
-    src,
     progressiveSrc,
     poster,
     duration,
+    absolutePath: videoPath,
   };
 }

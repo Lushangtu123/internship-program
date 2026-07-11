@@ -8,7 +8,7 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Comment, Video } from '@/types/video';
-import { rankVideos, type VideoSignals } from '@/lib/db/ranking';
+import { rankVideos, type UserAffinity, type VideoSignals } from '@/lib/db/ranking';
 
 export interface PublicUser {
   id: string;
@@ -48,6 +48,8 @@ export interface FeedStoreData {
   savesByUser: Record<string, string[]>;
   /** videoId -> play/complete counters for ranking */
   signals: Record<string, VideoSignals>;
+  /** userId -> videoIds the viewer has played (personalization) */
+  playsByUser: Record<string, string[]>;
   /** followerUserId -> creatorIds they follow */
   follows: Record<string, string[]>;
   /** recipientUserId -> notifications (newest first) */
@@ -152,6 +154,26 @@ function withUserContext(
   return { ...rest, liked, saved, isFollowing };
 }
 
+function buildUserAffinity(
+  store: FeedStoreData,
+  userId: string
+): UserAffinity {
+  const likedIds = store.likesByUser[userId] ?? [];
+  const byId = new Map(store.videos.map((v) => [v.id, v]));
+  const likedCreators = new Set<string>();
+  for (const id of likedIds) {
+    const creatorId = byId.get(id)?.creator.id;
+    if (creatorId) likedCreators.add(creatorId);
+  }
+  return {
+    followedCreators: new Set(store.follows[userId] ?? []),
+    likedCreators,
+    savedVideoIds: new Set(store.savesByUser[userId] ?? []),
+    likedVideoIds: new Set(likedIds),
+    playedVideoIds: new Set(store.playsByUser[userId] ?? []),
+  };
+}
+
 async function readSeed(): Promise<FeedStoreData> {
   const raw = await fs.readFile(SEED_PATH, 'utf-8');
   const seed = JSON.parse(raw) as {
@@ -162,6 +184,7 @@ async function readSeed(): Promise<FeedStoreData> {
   return {
     videos: seed.videos.map(({ liked: _l, saved: _s, isFollowing: _f, ...v }, index) => ({
       ...v,
+      status: v.status ?? 'ready',
       createdAt: v.createdAt ?? now - (seed.videos.length - index) * 3_600_000,
     })),
     comments: { ...seed.comments },
@@ -170,6 +193,7 @@ async function readSeed(): Promise<FeedStoreData> {
     likesByUser: {},
     savesByUser: {},
     signals: {},
+    playsByUser: {},
     follows: {},
     notificationsByUser: {},
   };
@@ -180,6 +204,7 @@ function migrate(data: Partial<FeedStoreData>): FeedStoreData {
   const videos = (data.videos ?? []).map(
     ({ liked: _l, saved: _s, isFollowing: _f, ...v }, index, arr) => ({
       ...(v as Video),
+      status: (v as Video).status ?? 'ready',
       createdAt:
         (v as Video).createdAt ?? now - (arr.length - index) * 3_600_000,
     })
@@ -192,6 +217,7 @@ function migrate(data: Partial<FeedStoreData>): FeedStoreData {
     likesByUser: data.likesByUser ?? {},
     savesByUser: data.savesByUser ?? {},
     signals: data.signals ?? {},
+    playsByUser: data.playsByUser ?? {},
     follows: data.follows ?? {},
     notificationsByUser: data.notificationsByUser ?? {},
   };
@@ -406,7 +432,16 @@ export async function listVideos(
   }
 
   const ranked =
-    feed === 'saved' ? pool : rankVideos(pool, store.signals);
+    feed === 'saved'
+      ? pool
+      : rankVideos(
+          pool,
+          store.signals,
+          Date.now(),
+          feed === 'foryou' && userId
+            ? buildUserAffinity(store, userId)
+            : undefined
+        );
 
   let startIndex = 0;
   if (cursor) {
@@ -586,7 +621,8 @@ export async function getCreatorProfile(
 export async function recordSignal(
   videoId: string,
   type: 'play' | 'complete',
-  dataDir?: string
+  dataDir?: string,
+  userId?: string | null
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const store = await ensureStore(dataDir);
   if (!store.videos.some((v) => v.id === videoId)) {
@@ -597,6 +633,14 @@ export async function recordSignal(
   if (type === 'play') current.plays += 1;
   if (type === 'complete') current.completes += 1;
   store.signals[videoId] = current;
+
+  if (userId && type === 'play') {
+    const played = new Set(store.playsByUser[userId] ?? []);
+    played.add(videoId);
+    // Cap recent history so store.json stays bounded
+    store.playsByUser[userId] = Array.from(played).slice(-200);
+  }
+
   await persist(store, dataDir);
   return { ok: true };
 }
@@ -784,12 +828,15 @@ export async function createVideo(
     caption: string;
     user: PublicUser;
     musicTitle?: string;
+    status?: Video['status'];
+    progressiveSrc?: string;
+    id?: string;
   },
   dataDir?: string
 ): Promise<Video> {
   const store = await ensureStore(dataDir);
   const video: Video = {
-    id: newId('v'),
+    id: input.id ?? newId('v'),
     src: input.src,
     poster: input.poster,
     duration: input.duration,
@@ -807,6 +854,8 @@ export async function createVideo(
     stats: { likes: 0, comments: 0, shares: 0 },
     liked: false,
     createdAt: Date.now(),
+    status: input.status ?? 'ready',
+    progressiveSrc: input.progressiveSrc,
   };
 
   store.videos = [video, ...store.videos];
@@ -814,6 +863,35 @@ export async function createVideo(
   store.signals[video.id] = { plays: 0, completes: 0 };
   await persist(store, dataDir);
   return video;
+}
+
+export async function updateVideoPlayback(
+  videoId: string,
+  patch: {
+    src?: string;
+    status?: Video['status'];
+    progressiveSrc?: string;
+  },
+  dataDir?: string
+): Promise<{ ok: true; video: Video } | { ok: false; error: string }> {
+  const store = await ensureStore(dataDir);
+  const video = store.videos.find((v) => v.id === videoId);
+  if (!video) return { ok: false, error: 'Video not found' };
+  if (patch.src !== undefined) video.src = patch.src;
+  if (patch.status !== undefined) video.status = patch.status;
+  if (patch.progressiveSrc !== undefined) {
+    video.progressiveSrc = patch.progressiveSrc;
+  }
+  await persist(store, dataDir);
+  return { ok: true, video };
+}
+
+export async function getVideoById(
+  videoId: string,
+  dataDir?: string
+): Promise<Video | null> {
+  const store = await ensureStore(dataDir);
+  return store.videos.find((v) => v.id === videoId) ?? null;
 }
 
 export async function updateVideoCaption(

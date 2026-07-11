@@ -23,6 +23,7 @@ import {
   toggleLike,
   toggleSave,
   updateVideoCaption,
+  updateVideoPlayback,
 } from '@/lib/db/feedStore';
 
 describe('feedStore identity + persistence', () => {
@@ -302,6 +303,63 @@ describe('feedStore identity + persistence', () => {
     expect(ids.indexOf(olderHot.id)).toBeGreaterThanOrEqual(0);
     expect(ids.indexOf(quietNewer.id)).toBeGreaterThanOrEqual(0);
     expect(ids.indexOf(olderHot.id)).toBeLessThan(ids.indexOf(quietNewer.id));
+  });
+
+  it('personalizes For You toward followed creators', async () => {
+    const viewer = await createGuestUser(dataDir);
+    const creatorA = await createGuestUser(dataDir);
+    const creatorB = await createGuestUser(dataDir);
+
+    const fromA = await createVideo(
+      {
+        src: '/uploads/videos/a.webm',
+        poster: '/uploads/posters/a.jpg',
+        duration: 3,
+        caption: 'from A',
+        user: creatorA.user,
+      },
+      dataDir
+    );
+    const fromB = await createVideo(
+      {
+        src: '/uploads/videos/b.webm',
+        poster: '/uploads/posters/b.jpg',
+        duration: 3,
+        caption: 'from B',
+        user: creatorB.user,
+      },
+      dataDir
+    );
+
+    await toggleFollow(viewer.user.id, creatorA.user.id, dataDir);
+
+    const page = await listVideos(null, 50, viewer.user.id, dataDir, 'foryou');
+    const ids = page.items.map((item) => item.id);
+    expect(ids.indexOf(fromA.id)).toBeLessThan(ids.indexOf(fromB.id));
+  });
+
+  it('marks uploads as processing then ready after playback update', async () => {
+    const guest = await createGuestUser(dataDir);
+    const video = await createVideo(
+      {
+        src: '/uploads/videos/demo.webm',
+        progressiveSrc: '/uploads/videos/demo.webm',
+        poster: '/uploads/posters/demo.jpg',
+        duration: 3,
+        caption: 'async',
+        user: guest.user,
+        status: 'processing',
+      },
+      dataDir
+    );
+    expect(video.status).toBe('processing');
+    const updated = await updateVideoPlayback(
+      video.id,
+      { src: '/uploads/hls/demo/index.m3u8', status: 'ready' },
+      dataDir
+    );
+    expect(updated.ok && updated.video.status).toBe('ready');
+    expect(updated.ok && updated.video.src).toContain('.m3u8');
   });
 
   it('filters following feed to followed creators only', async () => {

@@ -33,6 +33,10 @@ export interface Video {
   isFollowing?: boolean;
   /** Epoch ms — used for freshness ranking */
   createdAt?: number;
+  /** Upload packaging state (async HLS experiment) */
+  status?: 'processing' | 'ready' | 'failed';
+  /** Progressive file while HLS is still packaging */
+  progressiveSrc?: string;
 }
 
 export interface Comment {

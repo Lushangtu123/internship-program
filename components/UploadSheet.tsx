@@ -171,7 +171,7 @@ export function UploadSheet({ open, onClose, onUploaded }: UploadSheetProps) {
             <p className="text-[11px] text-white/50">
               {phase === 'uploading'
                 ? 'Sending file…'
-                : 'Transcoding to HLS — this can take a moment'}
+                : 'Saving poster — HLS packages in the background'}
             </p>
           </div>
         )}
@@ -179,6 +179,9 @@ export function UploadSheet({ open, onClose, onUploaded }: UploadSheetProps) {
         {done && (
           <p className="mb-2 text-xs text-emerald-300">
             Published — opening your video…
+            {typeof done === 'string' && done !== 'uploaded'
+              ? ' (HLS packaging continues in background)'
+              : ''}
           </p>
         )}
         <button
