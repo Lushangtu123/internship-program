@@ -43,6 +43,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Top tabs: **For You** / **Following**
 - Follow button on each video card
 
+## Step 8 — Persistent saves ✅
+
+- `POST /api/videos/:id/save` toggles a per-user bookmark
+- `GET /api/videos?feed=saved` returns saved videos (newest first)
+- Bookmark control on each card; top tab **Saved**
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

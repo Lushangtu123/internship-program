@@ -29,6 +29,8 @@ export interface FeedStoreData {
   sessions: Record<string, { userId: string; createdAt: number }>;
   /** userId -> videoIds liked by that user */
   likesByUser: Record<string, string[]>;
+  /** userId -> videoIds saved/bookmarked by that user */
+  savesByUser: Record<string, string[]>;
   /** videoId -> play/complete counters for ranking */
   signals: Record<string, VideoSignals>;
   /** followerUserId -> creatorIds they follow */
@@ -82,14 +84,16 @@ function withUserContext(
   video: Video,
   userId: string | null,
   likesByUser: FeedStoreData['likesByUser'],
-  follows: FeedStoreData['follows']
+  follows: FeedStoreData['follows'],
+  savesByUser: FeedStoreData['savesByUser']
 ): Video {
   const liked = userId ? (likesByUser[userId] ?? []).includes(video.id) : false;
+  const saved = userId ? (savesByUser[userId] ?? []).includes(video.id) : false;
   const isFollowing = userId
     ? (follows[userId] ?? []).includes(video.creator.id)
     : false;
-  const { liked: _ignored, isFollowing: _f, ...rest } = video;
-  return { ...rest, liked, isFollowing };
+  const { liked: _ignored, saved: _s, isFollowing: _f, ...rest } = video;
+  return { ...rest, liked, saved, isFollowing };
 }
 
 async function readSeed(): Promise<FeedStoreData> {
@@ -100,7 +104,7 @@ async function readSeed(): Promise<FeedStoreData> {
   };
   const now = Date.now();
   return {
-    videos: seed.videos.map(({ liked: _l, ...v }, index) => ({
+    videos: seed.videos.map(({ liked: _l, saved: _s, isFollowing: _f, ...v }, index) => ({
       ...v,
       createdAt: v.createdAt ?? now - (seed.videos.length - index) * 3_600_000,
     })),
@@ -108,6 +112,7 @@ async function readSeed(): Promise<FeedStoreData> {
     users: [],
     sessions: {},
     likesByUser: {},
+    savesByUser: {},
     signals: {},
     follows: {},
   };
@@ -115,17 +120,20 @@ async function readSeed(): Promise<FeedStoreData> {
 
 function migrate(data: Partial<FeedStoreData>): FeedStoreData {
   const now = Date.now();
-  const videos = (data.videos ?? []).map(({ liked: _l, ...v }, index, arr) => ({
-    ...(v as Video),
-    createdAt:
-      (v as Video).createdAt ?? now - (arr.length - index) * 3_600_000,
-  }));
+  const videos = (data.videos ?? []).map(
+    ({ liked: _l, saved: _s, isFollowing: _f, ...v }, index, arr) => ({
+      ...(v as Video),
+      createdAt:
+        (v as Video).createdAt ?? now - (arr.length - index) * 3_600_000,
+    })
+  );
   return {
     videos,
     comments: data.comments ?? {},
     users: data.users ?? [],
     sessions: data.sessions ?? {},
     likesByUser: data.likesByUser ?? {},
+    savesByUser: data.savesByUser ?? {},
     signals: data.signals ?? {},
     follows: data.follows ?? {},
   };
@@ -260,7 +268,7 @@ export async function listVideos(
   limit: number,
   userId?: string | null,
   dataDir?: string,
-  feed: 'foryou' | 'following' = 'foryou'
+  feed: 'foryou' | 'following' | 'saved' = 'foryou'
 ): Promise<{ items: Video[]; nextCursor: string | null }> {
   const store = await ensureStore(dataDir);
   let pool = store.videos;
@@ -271,9 +279,21 @@ export async function listVideos(
     }
     const following = new Set(store.follows[userId] ?? []);
     pool = store.videos.filter((v) => following.has(v.creator.id));
+  } else if (feed === 'saved') {
+    if (!userId) {
+      return { items: [], nextCursor: null };
+    }
+    const savedIds = store.savesByUser[userId] ?? [];
+    const byId = new Map(store.videos.map((v) => [v.id, v]));
+    // Most recently saved first (toggleSave appends).
+    pool = [...savedIds]
+      .reverse()
+      .map((id) => byId.get(id))
+      .filter((v): v is Video => Boolean(v));
   }
 
-  const ranked = rankVideos(pool, store.signals);
+  const ranked =
+    feed === 'saved' ? pool : rankVideos(pool, store.signals);
 
   let startIndex = 0;
   if (cursor) {
@@ -283,7 +303,13 @@ export async function listVideos(
 
   const slice = ranked.slice(startIndex, startIndex + limit);
   const items = slice.map((v) =>
-    withUserContext(v, userId ?? null, store.likesByUser, store.follows)
+    withUserContext(
+      v,
+      userId ?? null,
+      store.likesByUser,
+      store.follows,
+      store.savesByUser
+    )
   );
   const nextCursor =
     startIndex + limit < ranked.length
@@ -363,6 +389,29 @@ export async function toggleLike(
   await persist(store, dataDir);
 
   return { ok: true, liked: !currentlyLiked, likes: video.stats.likes };
+}
+
+export async function toggleSave(
+  videoId: string,
+  userId: string,
+  dataDir?: string
+): Promise<{ ok: true; saved: boolean } | { ok: false; error: string }> {
+  const store = await ensureStore(dataDir);
+  if (!store.videos.some((v) => v.id === videoId)) {
+    return { ok: false, error: 'Video not found' };
+  }
+
+  const savedSet = new Set(store.savesByUser[userId] ?? []);
+  const currentlySaved = savedSet.has(videoId);
+  if (currentlySaved) {
+    savedSet.delete(videoId);
+  } else {
+    savedSet.add(videoId);
+  }
+  store.savesByUser[userId] = Array.from(savedSet);
+  await persist(store, dataDir);
+
+  return { ok: true, saved: !currentlySaved };
 }
 
 export async function listComments(

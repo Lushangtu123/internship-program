@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
   const cursor = searchParams.get('cursor');
   const limit = parseInt(searchParams.get('limit') || '5', 10);
   const feedParam = searchParams.get('feed');
-  const feed = feedParam === 'following' ? 'following' : 'foryou';
+  const feed =
+    feedParam === 'following' || feedParam === 'saved' ? feedParam : 'foryou';
 
   const result = await listVideos(cursor, limit, user.id, undefined, feed);
   return withSession(NextResponse.json(result), token, isNewSession);

@@ -9,7 +9,7 @@ import { CaptionBadge } from './CaptionBadge';
 import { useAutoplay } from '@/lib/useAutoplay';
 import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
-import { likeVideo, toggleFollowCreator } from '@/lib/api';
+import { likeVideo, saveVideo, toggleFollowCreator } from '@/lib/api';
 import { trackComplete, trackPlay } from '@/lib/trackEngagement';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,7 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const manuallyPausedRef = useRef(false); // Use ref for immediate access
   const [localLiked, setLocalLiked] = useState(video.liked || false);
   const [localLikes, setLocalLikes] = useState(video.stats.likes);
+  const [localSaved, setLocalSaved] = useState(video.saved || false);
   const [localFollowing, setLocalFollowing] = useState(video.isFollowing || false);
   const [followPending, setFollowPending] = useState(false);
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
@@ -39,8 +40,9 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   useEffect(() => {
     setLocalLiked(video.liked || false);
     setLocalLikes(video.stats.likes);
+    setLocalSaved(video.saved || false);
     setLocalFollowing(video.isFollowing || false);
-  }, [video.id, video.liked, video.stats.likes, video.isFollowing]);
+  }, [video.id, video.liked, video.stats.likes, video.saved, video.isFollowing]);
 
   // Looping videos rarely fire `ended`; treat 80% watch as a complete.
   useEffect(() => {
@@ -166,6 +168,19 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
       console.error('Failed to like video:', error);
       setLocalLiked(!newLiked);
       setLocalLikes((n) => Math.max(0, n + (newLiked ? -1 : 1)));
+    }
+  };
+
+  const handleSave = async () => {
+    const next = !localSaved;
+    setLocalSaved(next);
+    try {
+      const result = await saveVideo(video.id);
+      setLocalSaved(result.saved);
+      await queryClient.invalidateQueries({ queryKey: ['videos'] });
+    } catch (error) {
+      console.error('Failed to save video:', error);
+      setLocalSaved(!next);
     }
   };
 
@@ -351,7 +366,9 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
             <ActionsBar
               stats={{ ...video.stats, likes: localLikes }}
               liked={localLiked}
+              saved={localSaved}
               onLike={handleLike}
+              onSave={handleSave}
               onComment={onCommentClick}
               onShare={handleShare}
             />

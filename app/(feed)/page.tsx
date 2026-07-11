@@ -18,7 +18,9 @@ import { useSearchParams } from 'next/navigation';
 function FeedPageContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
-  const [feedMode, setFeedMode] = useState<'foryou' | 'following'>('foryou');
+  const [feedMode, setFeedMode] = useState<'foryou' | 'following' | 'saved'>(
+    'foryou'
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   
@@ -178,12 +180,18 @@ function FeedPageContent() {
         {videos.length === 0 ? (
           <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
             <p className="text-lg font-semibold">
-              {feedMode === 'following' ? 'No following videos yet' : 'No videos'}
+              {feedMode === 'following'
+                ? 'No following videos yet'
+                : feedMode === 'saved'
+                  ? 'No saved videos yet'
+                  : 'No videos'}
             </p>
             <p className="text-sm text-white/60">
               {feedMode === 'following'
                 ? 'Follow creators on For You, then check back here.'
-                : 'Upload a video to get started.'}
+                : feedMode === 'saved'
+                  ? 'Tap the bookmark on a video to save it here.'
+                  : 'Upload a video to get started.'}
             </p>
           </div>
         ) : (

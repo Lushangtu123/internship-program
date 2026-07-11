@@ -4,6 +4,7 @@ import {
   Comment,
   CommentsResponse,
   LikeResponse,
+  SaveResponse,
 } from '@/types/video';
 
 const API_BASE = '/api';
@@ -67,7 +68,7 @@ export async function logout(): Promise<void> {
 export async function fetchVideos(
   cursor?: string | null,
   limit: number = 5,
-  feed: 'foryou' | 'following' = 'foryou'
+  feed: 'foryou' | 'following' | 'saved' = 'foryou'
 ): Promise<VideosResponse> {
   const params = new URLSearchParams();
   if (cursor) params.set('cursor', cursor);
@@ -97,6 +98,14 @@ export async function likeVideo(videoId: string): Promise<LikeResponse> {
     method: 'POST',
   });
   if (!response.ok) throw new Error('Failed to like video');
+  return response.json();
+}
+
+export async function saveVideo(videoId: string): Promise<SaveResponse> {
+  const response = await apiFetch(`${API_BASE}/videos/${videoId}/save`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('Failed to save video');
   return response.json();
 }
 
