@@ -92,6 +92,11 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - AuthBar identity chip links to `/creator/[me]`
 - Profile page hides Follow when viewing yourself
 
+## Step 18 — Share success feedback ✅
+
+- Share uses Web Share when available, else clipboard
+- Transient toast: Shared / Link copied / Couldn’t share (cancel stays silent)
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
