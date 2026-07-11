@@ -1,12 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { BottomNav } from '@/components/BottomNav';
 import { MessageThread } from '@/components/MessageThread';
+import { UploadSheet } from '@/components/UploadSheet';
 
 export default function ConversationPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const conversationId = params.id;
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   if (!conversationId) {
     return (
@@ -24,7 +28,23 @@ export default function ConversationPage() {
 
   return (
     <div className="relative flex h-full flex-col bg-zinc-950 text-white">
-      <MessageThread conversationId={conversationId} />
+      <div className="min-h-0 flex-1 pb-14">
+        <MessageThread conversationId={conversationId} />
+      </div>
+      <BottomNav
+        active={uploadOpen ? 'create' : 'inbox'}
+        onHome={() => router.push('/')}
+        onFollowing={() => router.push('/?feed=following')}
+        onCreate={() => setUploadOpen((o) => !o)}
+      />
+      <UploadSheet
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={(videoId) => {
+          setUploadOpen(false);
+          router.push(`/?v=${encodeURIComponent(videoId)}`);
+        }}
+      />
     </div>
   );
 }
