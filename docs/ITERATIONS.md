@@ -241,7 +241,7 @@
   - `ABR_LADDER`：360p / 480p / 720p + `master.m3u8`（`index.m3u8` 作别名）
   - 阶梯失败回退单码率；`useHlsPlayback` 开启 `capLevelToPlayerSize` + 自动 startLevel
 - **结果**：`07db91f`。
-- **后续**：规范化 SQL 表结构；确认后可合 main。
+- **后续**：规范化 SQL 已落地（`9cb7235`）；确认后可合 main。
 
 ### 2026-07-11 — 实验：规范化 SQLite 关系表
 
@@ -250,7 +250,7 @@
   - 关系表：`users` / `sessions` / `videos` / `comments` / `likes` / `saves` / `follows` / `signals` / `plays` / `notifications`
   - `FeedStoreData` ↔ 表行映射；事务替换写入
   - 自动迁移：`store.json` → v1 blob → v2 表；`feedStore` API 不变
-- **结果**：见本条合入 commit。
+- **结果**：提交：`9cb7235`；`npm test` 64 通过。
 - **后续**：确认后可合 main；即时通讯仍可选。
 
 ---
