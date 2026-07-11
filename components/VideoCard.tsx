@@ -6,6 +6,7 @@ import { Video } from '@/types/video';
 import { ActionsBar } from './ActionsBar';
 import { CaptionBadge } from './CaptionBadge';
 import { useAutoplay } from '@/lib/useAutoplay';
+import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
 import { likeVideo } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,8 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const [showPauseIcon, setShowPauseIcon] = useState(false);
   
   const { isMuted, showCaptions, setActiveVideoId } = useUIStore();
+
+  useHlsPlayback(videoRef, video.src);
 
   useEffect(() => {
     setLocalLiked(video.liked || false);
@@ -183,7 +186,6 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
       {/* Video Element */}
       <video
         ref={videoRef}
-        src={video.src}
         poster={video.poster}
         className="w-full h-full object-cover cursor-pointer"
         loop

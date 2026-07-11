@@ -29,11 +29,14 @@ describe('saveUploadedVideo', () => {
     const file = new File([buffer], 'clip.webm', { type: 'video/webm' });
     const saved = await saveUploadedVideo(file, tempRoot);
 
-    expect(saved.src.startsWith('/uploads/videos/')).toBe(true);
+    expect(saved.src.includes('/uploads/hls/')).toBe(true);
+    expect(saved.src.endsWith('index.m3u8')).toBe(true);
+    expect(saved.progressiveSrc.startsWith('/uploads/videos/')).toBe(true);
     expect(saved.poster.startsWith('/uploads/posters/')).toBe(true);
     expect(saved.duration).toBeGreaterThan(0);
 
     await access(path.join(tempRoot, 'public', saved.src.replace(/^\//, '')));
+    await access(path.join(tempRoot, 'public', saved.progressiveSrc.replace(/^\//, '')));
     await access(path.join(tempRoot, 'public', saved.poster.replace(/^\//, '')));
   });
 });

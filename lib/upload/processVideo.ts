@@ -15,13 +15,15 @@ export function getUploadDirs(rootDir = process.cwd()) {
     UPLOAD_ROOT,
     VIDEO_DIR: path.join(UPLOAD_ROOT, 'videos'),
     POSTER_DIR: path.join(UPLOAD_ROOT, 'posters'),
+    HLS_DIR: path.join(UPLOAD_ROOT, 'hls'),
   };
 }
 
 export async function ensureUploadDirs(rootDir = process.cwd()) {
-  const { VIDEO_DIR, POSTER_DIR } = getUploadDirs(rootDir);
+  const { VIDEO_DIR, POSTER_DIR, HLS_DIR } = getUploadDirs(rootDir);
   await fs.mkdir(VIDEO_DIR, { recursive: true });
   await fs.mkdir(POSTER_DIR, { recursive: true });
+  await fs.mkdir(HLS_DIR, { recursive: true });
 }
 
 function extensionFor(file: File) {
@@ -66,11 +68,66 @@ async function extractPoster(videoPath: string, posterPath: string) {
   ]);
 }
 
+/** Single-rendition VOD HLS package (Step 4). Falls back to video-only if audio encode fails. */
+export async function transcodeToHls(
+  inputPath: string,
+  id: string,
+  rootDir = process.cwd()
+): Promise<string> {
+  const { HLS_DIR } = getUploadDirs(rootDir);
+  const outDir = path.join(HLS_DIR, id);
+  await fs.mkdir(outDir, { recursive: true });
+
+  const playlist = path.join(outDir, 'index.m3u8');
+  const segmentPattern = path.join(outDir, 'seg_%03d.ts');
+
+  const baseArgs = [
+    '-y',
+    '-i',
+    inputPath,
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-crf',
+    '28',
+    '-pix_fmt',
+    'yuv420p',
+  ];
+  const hlsArgs = [
+    '-f',
+    'hls',
+    '-hls_time',
+    '2',
+    '-hls_playlist_type',
+    'vod',
+    '-hls_segment_filename',
+    segmentPattern,
+    playlist,
+  ];
+
+  try {
+    await execFileAsync(
+      'ffmpeg',
+      [...baseArgs, '-c:a', 'aac', '-b:a', '128k', '-ac', '2', ...hlsArgs],
+      { timeout: 180000 }
+    );
+  } catch {
+    await execFileAsync('ffmpeg', [...baseArgs, '-an', ...hlsArgs], {
+      timeout: 180000,
+    });
+  }
+
+  await fs.access(playlist);
+  return `/uploads/hls/${id}/index.m3u8`;
+}
+
 export async function saveUploadedVideo(
   file: File,
   rootDir = process.cwd()
 ): Promise<{
   src: string;
+  progressiveSrc: string;
   poster: string;
   duration: number;
   id: string;
@@ -100,24 +157,30 @@ export async function saveUploadedVideo(
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(videoPath, buffer);
 
+  let poster = `/uploads/posters/${posterName}`;
   try {
     await extractPoster(videoPath, posterPath);
   } catch {
     const fallbackPng = path.join(POSTER_DIR, `${id}.png`);
     await fs.copyFile(path.join(rootDir, 'public/posters/1.png'), fallbackPng);
-    return {
-      id,
-      src: `/uploads/videos/${videoName}`,
-      poster: `/uploads/posters/${id}.png`,
-      duration: await probeDurationSeconds(videoPath),
-    };
+    poster = `/uploads/posters/${id}.png`;
   }
 
   const duration = await probeDurationSeconds(videoPath);
+  const progressiveSrc = `/uploads/videos/${videoName}`;
+
+  let src = progressiveSrc;
+  try {
+    src = await transcodeToHls(videoPath, id, rootDir);
+  } catch (error) {
+    console.error('HLS transcode failed, using progressive source:', error);
+  }
+
   return {
     id,
-    src: `/uploads/videos/${videoName}`,
-    poster: `/uploads/posters/${posterName}`,
+    src,
+    progressiveSrc,
+    poster,
     duration,
   };
 }

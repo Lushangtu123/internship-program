@@ -23,9 +23,14 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - ffmpeg poster frame + duration probe
 - Uploads prepend into the feed; `UploadButton` UI
 
-## Step 4 — HLS playback + CDN (next)
+## Step 4 — HLS playback ✅
 
-- Transcode uploaded files to HLS ladders
-- Serve via CDN-friendly paths
+- Uploads are transcoded to single-rendition VOD HLS (`public/uploads/hls/{id}/`)
+- Progressive file kept as fallback artifact
+- Player uses native HLS (Safari) or `hls.js` (Chromium)
+- CDN-friendly cache headers on `/uploads/hls/*`
 
-## Step 5 — Ranking / “For You” signals (later)
+## Step 5 — Ranking / “For You” signals (next)
+
+- Record play / like / complete events
+- Simple ranking for the feed (freshness + engagement)

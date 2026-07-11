@@ -64,7 +64,7 @@ export function UploadButton() {
           className="absolute right-0 top-10 w-72 rounded-xl border border-white/10 bg-zinc-900/95 p-3 text-white shadow-xl"
         >
           <p className="mb-2 text-xs text-white/70">
-            Local upload (webm/mp4/mov, max 40MB). Poster is captured with ffmpeg.
+            Local upload (webm/mp4/mov, max 40MB). Packaged to HLS + poster.
           </p>
           <input
             ref={inputRef}
