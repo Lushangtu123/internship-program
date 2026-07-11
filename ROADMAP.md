@@ -157,6 +157,16 @@ We improve toward a TikTok-like product **one step at a time**.
 
 - XHR upload % progress, then “Processing…” while server transcodes
 
+## Step 27 — Own-video manage (edit / delete) ✅
+
+- `PATCH` / `DELETE /api/videos/[id]` for the owner
+- Manage control on own profile video grid
+
+## Step 28 — Search MVP ✅
+
+- `GET /api/search?q=` over captions + creator usernames
+- `/search` page; search icon on the feed top bar
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

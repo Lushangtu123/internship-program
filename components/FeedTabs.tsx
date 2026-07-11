@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { Search } from 'lucide-react';
 import type { FeedMode } from '@/lib/deepLink';
 import { cn } from '@/lib/utils';
 
@@ -10,12 +12,20 @@ interface FeedTabsProps {
 
 export function FeedTabs({ mode, onChange }: FeedTabsProps) {
   return (
-    <div
-      className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex justify-center pt-[max(0.75rem,env(safe-area-inset-top))]"
-      role="tablist"
-      aria-label="Feed"
-    >
-      <div className="pointer-events-auto flex items-end gap-5">
+    <div className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-start justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <Link
+        href="/search"
+        className="pointer-events-auto rounded-full bg-black/35 p-2 text-white backdrop-blur-sm hover:bg-black/50"
+        aria-label="Search"
+      >
+        <Search className="h-4 w-4" />
+      </Link>
+
+      <div
+        className="pointer-events-auto flex items-end gap-5"
+        role="tablist"
+        aria-label="Feed"
+      >
         {(
           [
             { id: 'following' as const, label: 'Following' },
@@ -46,6 +56,9 @@ export function FeedTabs({ mode, onChange }: FeedTabsProps) {
           );
         })}
       </div>
+
+      {/* Balance the search button so tabs stay centered */}
+      <span className="inline-block w-8" aria-hidden />
     </div>
   );
 }

@@ -111,6 +111,38 @@ export async function fetchCreatorProfile(creatorId: string) {
   };
 }
 
+export async function updateVideoCaption(
+  videoId: string,
+  caption: string
+): Promise<Video> {
+  const response = await apiFetch(`${API_BASE}/videos/${videoId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ caption }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to update caption');
+  return data.video as Video;
+}
+
+export async function deleteOwnedVideo(videoId: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/videos/${videoId}`, {
+    method: 'DELETE',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed to delete video');
+}
+
+export async function searchCatalog(query: string): Promise<{
+  videos: Video[];
+  creators: Array<{ id: string; handle: string; avatar: string; name?: string }>;
+}> {
+  const params = new URLSearchParams({ q: query });
+  const response = await apiFetch(`${API_BASE}/search?${params}`);
+  if (!response.ok) throw new Error('Search failed');
+  return response.json();
+}
+
 export type SuggestedCreator = {
   id: string;
   handle: string;

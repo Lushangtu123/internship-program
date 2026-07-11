@@ -12,48 +12,12 @@ import {
   toggleFollowCreator,
 } from '@/lib/api';
 import { formatNumber } from '@/lib/utils';
-import type { Video } from '@/types/video';
 import { BottomNav } from '@/components/BottomNav';
 import { ProfileAuthPanel } from '@/components/ProfileAuthPanel';
 import { UploadSheet } from '@/components/UploadSheet';
+import { ManagedVideoGrid } from '@/components/ManagedVideoGrid';
 
 type ProfileTab = 'videos' | 'saved';
-
-function VideoGrid({
-  videos,
-  emptyText,
-}: {
-  videos: Video[];
-  emptyText: string;
-}) {
-  if (videos.length === 0) {
-    return (
-      <p className="px-2 py-8 text-center text-sm text-white/50">{emptyText}</p>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-3 gap-1">
-      {videos.map((video) => (
-        <Link
-          key={video.id}
-          href={`/?v=${video.id}`}
-          className="relative aspect-[9/16] overflow-hidden bg-zinc-900"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={video.poster}
-            alt={video.caption}
-            className="h-full w-full object-cover"
-          />
-          <span className="absolute bottom-1 left-1 text-[10px] font-medium text-white drop-shadow">
-            {formatNumber(video.stats.likes)}
-          </span>
-        </Link>
-      ))}
-    </div>
-  );
-}
 
 export default function CreatorProfilePage() {
   const params = useParams<{ id: string }>();
@@ -227,16 +191,18 @@ export default function CreatorProfilePage() {
 
       <section className={`px-2 py-3 ${isSelf ? '' : 'border-t border-white/10'}`}>
         {!isSelf || tab === 'videos' ? (
-          <VideoGrid
+          <ManagedVideoGrid
             videos={data.videos}
             emptyText="No videos yet"
+            manageable={isSelf && tab === 'videos'}
+            creatorId={creatorId}
           />
         ) : savedLoading ? (
           <p className="px-2 py-8 text-center text-sm text-white/50">
             Loading…
           </p>
         ) : (
-          <VideoGrid
+          <ManagedVideoGrid
             videos={savedData?.items ?? []}
             emptyText="No saved videos yet. Tap the bookmark on a video to save it here."
           />

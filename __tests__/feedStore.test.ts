@@ -6,6 +6,7 @@ import {
   addComment,
   createGuestUser,
   createVideo,
+  deleteVideo,
   getCreatorProfile,
   listComments,
   listNotifications,
@@ -17,9 +18,11 @@ import {
   recordShare,
   registerUser,
   resetStoreCache,
+  searchCatalog,
   toggleFollow,
   toggleLike,
   toggleSave,
+  updateVideoCaption,
 } from '@/lib/db/feedStore';
 
 describe('feedStore identity + persistence', () => {
@@ -72,6 +75,46 @@ describe('feedStore identity + persistence', () => {
     resetStoreCache();
     const after = await listVideos(null, 50, null, dataDir);
     expect(after.items.find((v) => v.id === 'v_001')?.stats.shares).toBe(base + 1);
+  });
+
+  it('lets owners update caption and delete their uploads', async () => {
+    const guest = await createGuestUser(dataDir);
+    const video = await createVideo(
+      {
+        src: '/uploads/x.mp4',
+        poster: '/uploads/x.jpg',
+        duration: 3,
+        caption: 'before',
+        user: guest.user,
+      },
+      dataDir
+    );
+    const updated = await updateVideoCaption(
+      video.id,
+      guest.user.id,
+      'after edit',
+      dataDir
+    );
+    expect(updated.ok && updated.video.caption).toBe('after edit');
+
+    const other = await createGuestUser(dataDir);
+    const denied = await deleteVideo(video.id, other.user.id, dataDir);
+    expect(denied.ok).toBe(false);
+
+    const removed = await deleteVideo(video.id, guest.user.id, dataDir);
+    expect(removed.ok).toBe(true);
+    const page = await listVideos(null, 50, null, dataDir);
+    expect(page.items.find((v) => v.id === video.id)).toBeUndefined();
+  });
+
+  it('searches videos by caption and creators by username', async () => {
+    await registerUser('searchable_creator', 'secret12', dataDir);
+    const hit = await searchCatalog('sintel', 20, dataDir);
+    expect(hit.videos.length).toBeGreaterThan(0);
+    const creators = await searchCatalog('searchable_creator', 20, dataDir);
+    expect(creators.creators.some((c) => c.handle.includes('searchable_creator'))).toBe(
+      true
+    );
   });
 
   it('attaches comment author from the acting user', async () => {

@@ -816,6 +816,95 @@ export async function createVideo(
   return video;
 }
 
+export async function updateVideoCaption(
+  videoId: string,
+  ownerId: string,
+  caption: string,
+  dataDir?: string
+): Promise<{ ok: true; video: Video } | { ok: false; error: string; status: number }> {
+  const store = await ensureStore(dataDir);
+  const video = store.videos.find((v) => v.id === videoId);
+  if (!video) return { ok: false, error: 'Video not found', status: 404 };
+  if (video.creator.id !== ownerId) {
+    return { ok: false, error: 'Forbidden', status: 403 };
+  }
+  const next = caption.trim();
+  if (!next) return { ok: false, error: 'Caption required', status: 400 };
+  video.caption = next.slice(0, 300);
+  await persist(store, dataDir);
+  return { ok: true, video };
+}
+
+export async function deleteVideo(
+  videoId: string,
+  ownerId: string,
+  dataDir?: string
+): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  const store = await ensureStore(dataDir);
+  const video = store.videos.find((v) => v.id === videoId);
+  if (!video) return { ok: false, error: 'Video not found', status: 404 };
+  if (video.creator.id !== ownerId) {
+    return { ok: false, error: 'Forbidden', status: 403 };
+  }
+
+  store.videos = store.videos.filter((v) => v.id !== videoId);
+  delete store.comments[videoId];
+  delete store.signals[videoId];
+
+  for (const userId of Object.keys(store.likesByUser)) {
+    store.likesByUser[userId] = (store.likesByUser[userId] ?? []).filter(
+      (id) => id !== videoId
+    );
+  }
+  for (const userId of Object.keys(store.savesByUser)) {
+    store.savesByUser[userId] = (store.savesByUser[userId] ?? []).filter(
+      (id) => id !== videoId
+    );
+  }
+  for (const userId of Object.keys(store.notificationsByUser)) {
+    store.notificationsByUser[userId] = (
+      store.notificationsByUser[userId] ?? []
+    ).filter((n) => n.videoId !== videoId);
+  }
+
+  await persist(store, dataDir);
+  return { ok: true };
+}
+
+/** Simple catalog search over captions + creator handles/names. */
+export async function searchCatalog(
+  query: string,
+  limit = 20,
+  dataDir?: string
+): Promise<{ videos: Video[]; creators: Array<{ id: string; handle: string; avatar: string; name?: string }> }> {
+  const store = await ensureStore(dataDir);
+  const q = query.trim().toLowerCase();
+  if (!q) return { videos: [], creators: [] };
+
+  const videos = store.videos
+    .filter((v) => {
+      const hay = `${v.caption} ${v.creator.handle} ${v.creator.name ?? ''}`.toLowerCase();
+      return hay.includes(q);
+    })
+    .slice(0, limit);
+
+  const creators = store.users
+    .filter((u) => !u.isGuest)
+    .filter((u) => {
+      const hay = `${u.username} @${u.username}`.toLowerCase();
+      return hay.includes(q.replace(/^@/, ''));
+    })
+    .slice(0, 10)
+    .map((u) => ({
+      id: u.id,
+      handle: `@${u.username}`,
+      avatar: u.avatar,
+      name: u.username,
+    }));
+
+  return { videos, creators };
+}
+
 export async function listNotifications(
   userId: string,
   limit = 30,
