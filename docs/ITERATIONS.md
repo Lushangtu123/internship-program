@@ -171,7 +171,7 @@
   - 新增 `/inbox` 全页（手机框内），`InboxPanel` 抽共用列表
   - 底栏 Inbox 改为 `Link` → `/inbox`，不再用 feed sheet
   - 旧 `/?sheet=inbox` 重定向到 `/inbox`；Create 仍用 UploadSheet
-- **结果**：Me / Home 点 Inbox 都进无视频的通知页。提交：见本条合入 commit
+- **结果**：Me / Home 点 Inbox 都进无视频的通知页。提交：`ac4e2f4`
 - **后续**：点赞/评论通知仍可点进对应视频（有意为之）。
 
 ---
