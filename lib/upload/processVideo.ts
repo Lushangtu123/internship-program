@@ -3,6 +3,8 @@ import path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { randomBytes } from 'crypto';
+import { getObjectStore, type ObjectStore } from '@/lib/storage';
+import { guessContentType } from '@/lib/storage/types';
 
 const execFileAsync = promisify(execFile);
 
@@ -68,11 +70,12 @@ async function extractPoster(videoPath: string, posterPath: string) {
   ]);
 }
 
-/** Single-rendition VOD HLS package (Step 4). Falls back to video-only if audio encode fails. */
+/** Single-rendition VOD HLS package; publishes via ObjectStore. */
 export async function transcodeToHls(
   inputPath: string,
   id: string,
-  rootDir = process.cwd()
+  rootDir = process.cwd(),
+  store: ObjectStore = getObjectStore(rootDir)
 ): Promise<string> {
   const { HLS_DIR } = getUploadDirs(rootDir);
   const outDir = path.join(HLS_DIR, id);
@@ -119,7 +122,8 @@ export async function transcodeToHls(
   }
 
   await fs.access(playlist);
-  return `/uploads/hls/${id}/index.m3u8`;
+  await store.putDirectory(`hls/${id}`, outDir);
+  return store.publicUrl(`hls/${id}/index.m3u8`);
 }
 
 export async function saveUploadedVideo(
@@ -154,7 +158,8 @@ export async function saveUploadedVideo(
 /** Fast path: persist file + poster + duration, skip HLS (async packaging). */
 export async function acceptUploadedVideo(
   file: File,
-  rootDir = process.cwd()
+  rootDir = process.cwd(),
+  store: ObjectStore = getObjectStore(rootDir)
 ): Promise<{
   progressiveSrc: string;
   poster: string;
@@ -187,17 +192,30 @@ export async function acceptUploadedVideo(
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(videoPath, buffer);
 
-  let poster = `/uploads/posters/${posterName}`;
+  let localPosterPath = posterPath;
+  let posterKey = `posters/${posterName}`;
   try {
     await extractPoster(videoPath, posterPath);
   } catch {
     const fallbackPng = path.join(POSTER_DIR, `${id}.png`);
     await fs.copyFile(path.join(rootDir, 'public/posters/1.png'), fallbackPng);
-    poster = `/uploads/posters/${id}.png`;
+    localPosterPath = fallbackPng;
+    posterKey = `posters/${id}.png`;
   }
 
   const duration = await probeDurationSeconds(videoPath);
-  const progressiveSrc = `/uploads/videos/${videoName}`;
+  const videoKey = `videos/${videoName}`;
+
+  const progressiveSrc = await store.putFile(
+    videoKey,
+    videoPath,
+    guessContentType(videoKey)
+  );
+  const poster = await store.putFile(
+    posterKey,
+    localPosterPath,
+    guessContentType(posterKey)
+  );
 
   return {
     id,

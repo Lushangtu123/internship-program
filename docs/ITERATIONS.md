@@ -224,6 +224,16 @@
 - **结果**：提交：`a5d02d8`；规范化表结构 / 对象存储 / ABR 仍后续。
 - **后续**：确认后可合 main；下一步优先对象存储或 ABR。
 
+### 2026-07-11 — 实验：对象存储抽象（local / S3）
+
+- **问题**：上传产物写死在 `public/uploads/`，多实例与 CDN 源站无法复用；异步 HLS 需要可替换的发布层。
+- **方法**（同实验分支）：
+  - `ObjectStore`：`put` / `putFile` / `putDirectory` / `publicUrl`
+  - `LocalObjectStore`（默认）与 `S3CompatibleObjectStore`（SigV4 PutObject，无 AWS SDK）
+  - `STORAGE_DRIVER=local|s3` + `.env.example`；上传管线经 `getObjectStore()` 发布 progressive / poster / HLS
+- **结果**：见本条合入 commit。
+- **后续**：ABR；规范化 SQL 表结构；确认后可合 main。
+
 ---
 
 <!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->

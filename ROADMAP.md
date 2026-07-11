@@ -19,7 +19,7 @@ We improve toward a TikTok-like product **one step at a time**.
 ## Step 3 — Upload pipeline ✅
 
 - `POST /api/videos/upload` (multipart)
-- Local storage under `public/uploads/` (stub toward object storage)
+- Local storage under `public/uploads/` (object-storage abstraction; S3 driver experimental)
 - ffmpeg poster frame + duration probe
 - Uploads prepend into the feed; `UploadButton` UI
 
@@ -174,9 +174,10 @@ We improve toward a TikTok-like product **one step at a time**.
 - Messaging / inbox
 - Normalized SQL schema (beyond snapshot blob)
 
-## Experimental (branch) — Personalized For You + async HLS + SQLite
+## Experimental (branch) — Personalized For You + async HLS + SQLite + object storage
 
 - Affinity boosts on For You from follows / liked creators / saves / plays
 - Upload returns progressive playback immediately (`status=processing`); HLS packages in background
 - Persist feed state in SQLite WAL (`data/store.sqlite`) instead of rewriting `store.json`
+- Object storage abstraction: local `public/uploads` (default) or S3-compatible via `STORAGE_DRIVER=s3`
 - Branch: `cursor/personalize-async-upload-8729`
