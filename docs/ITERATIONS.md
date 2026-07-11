@@ -329,7 +329,7 @@
 - **方法**：
   - `fetchVideoPackagingStatus` + `useVideoPackagingPoll`；处理中优先播 `progressiveSrc`
   - `patchVideoPackaging` 写回 React Query；卡片角标 Processing… / failed；主页网格同态 chip
-- **结果**：待提交后回填。
+- **结果**：提交：`6c08c9f`；`npm test` 77 通过。
 - **后续**：Inbox 未读私信智能切 tab；或共享数据库。
 
 ---
