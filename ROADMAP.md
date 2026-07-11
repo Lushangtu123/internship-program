@@ -104,6 +104,11 @@ We improve toward a TikTok-like product **one step at a time**.
 - Comment notifications use `/?v=&c=1` to open the comments drawer
 - Confirmed product updates land on `main`; experiments stay on branches
 
+## Step 16 — Comment count sync on cards ✅
+
+- Posting / loading comments patches React Query `videos` (and creator) caches
+- Action-bar comment badge stays in sync with the drawer
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
