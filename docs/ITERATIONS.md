@@ -320,7 +320,7 @@
 - **方法**：
   - 将 `cursor/personalize-async-upload-8729`（PR #17）merge 进 `main`
   - `ROADMAP` 记为 Step 29；后续新实验再开分支
-- **结果**：待提交后回填。
+- **结果**：提交：`60031ac`（merge `0ebb119`）；`npm test` 74 通过。
 - **后续**：共享/多实例数据库；或继续产品 polish。
 
 ---
