@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, Send } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,6 +9,10 @@ import { ScrollArea } from './ui/scroll-area';
 import { Comment } from '@/types/video';
 import { fetchComments, postComment } from '@/lib/api';
 import { formatNumber } from '@/lib/utils';
+import {
+  bumpVideoCommentCount,
+  setVideoCommentCount,
+} from '@/lib/videoQueryCache';
 
 interface CommentsDrawerProps {
   videoId: string;
@@ -27,6 +32,7 @@ export function CommentsDrawer({
   isOpen,
   onClose,
 }: CommentsDrawerProps) {
+  const queryClient = useQueryClient();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
@@ -53,6 +59,7 @@ export function CommentsDrawer({
     try {
       const response = await fetchComments(videoId);
       setComments(response.items);
+      setVideoCommentCount(queryClient, videoId, commentCount(response.items));
     } catch (error) {
       console.error('Failed to load comments:', error);
     } finally {
@@ -91,6 +98,7 @@ export function CommentsDrawer({
     } else {
       setComments((prev) => [{ ...optimisticComment, replies: [] }, ...prev]);
     }
+    bumpVideoCommentCount(queryClient, videoId, 1);
 
     setSending(true);
     try {
@@ -117,6 +125,7 @@ export function CommentsDrawer({
       }
     } catch (error) {
       console.error('Failed to post comment:', error);
+      bumpVideoCommentCount(queryClient, videoId, -1);
       if (parent) {
         setComments((prev) =>
           prev.map((c) =>
