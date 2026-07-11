@@ -7,6 +7,8 @@ import { MoreHorizontal } from 'lucide-react';
 import type { Video } from '@/types/video';
 import { deleteOwnedVideo, updateVideoCaption } from '@/lib/api';
 import { formatNumber } from '@/lib/utils';
+import { patchVideoPackaging } from '@/lib/videoQueryCache';
+import { useVideoPackagingPoll } from '@/hooks/useVideoPackagingPoll';
 
 interface ManagedVideoGridProps {
   videos: Video[];
@@ -14,6 +16,43 @@ interface ManagedVideoGridProps {
   /** When true, owner can edit caption / delete */
   manageable?: boolean;
   creatorId?: string;
+}
+
+function PackagingChip({
+  video,
+  creatorId,
+}: {
+  video: Video;
+  creatorId?: string;
+}) {
+  const queryClient = useQueryClient();
+  useVideoPackagingPoll(
+    video,
+    video.status === 'processing',
+    (next) => {
+      patchVideoPackaging(queryClient, video.id, {
+        status: next.status,
+        src: next.src,
+        progressiveSrc: next.progressiveSrc,
+      });
+      if (creatorId) {
+        void queryClient.invalidateQueries({ queryKey: ['creator', creatorId] });
+      }
+    },
+    4_000
+  );
+
+  if (video.status !== 'processing' && video.status !== 'failed') return null;
+
+  return (
+    <span
+      className={`absolute left-1 top-1 rounded px-1.5 py-0.5 text-[9px] font-semibold text-white ${
+        video.status === 'processing' ? 'bg-black/65' : 'bg-rose-600/85'
+      }`}
+    >
+      {video.status === 'processing' ? 'Processing' : 'Failed'}
+    </span>
+  );
 }
 
 export function ManagedVideoGrid({
@@ -102,6 +141,7 @@ export function ManagedVideoGrid({
                 {formatNumber(video.stats.likes)}
               </span>
             </Link>
+            <PackagingChip video={video} creatorId={creatorId} />
             {manageable && (
               <button
                 type="button"

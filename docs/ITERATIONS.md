@@ -321,7 +321,16 @@
   - 将 `cursor/personalize-async-upload-8729`（PR #17）merge 进 `main`
   - `ROADMAP` 记为 Step 29；后续新实验再开分支
 - **结果**：提交：`60031ac`（merge `0ebb119`）；`npm test` 74 通过。
-- **后续**：共享/多实例数据库；或继续产品 polish。
+- **后续**：上传打包状态 UI；共享/多实例数据库。
+
+### 2026-07-11 — Step 30：上传打包状态 UI
+
+- **问题**：异步上传已返回 `processing`，但信息流/主页不展示进度，也仍可能卡在 progressive 源。
+- **方法**：
+  - `fetchVideoPackagingStatus` + `useVideoPackagingPoll`；处理中优先播 `progressiveSrc`
+  - `patchVideoPackaging` 写回 React Query；卡片角标 Processing… / failed；主页网格同态 chip
+- **结果**：待提交后回填。
+- **后续**：Inbox 未读私信智能切 tab；或共享数据库。
 
 ---
 

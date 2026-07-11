@@ -86,3 +86,40 @@ export function setVideoCommentCount(
     withCommentCountAbsolute(pages, videoId, count)
   );
 }
+
+export type PackagingPatch = {
+  status: NonNullable<Video['status']>;
+  src: string;
+  progressiveSrc?: string;
+};
+
+/** Pure helper — update packaging fields on matching videos. */
+export function withPackagingPatch(
+  pages: VideosResponse[],
+  videoId: string,
+  patch: PackagingPatch
+): VideosResponse[] {
+  return pages.map((page) => ({
+    ...page,
+    items: page.items.map((video) =>
+      video.id === videoId
+        ? {
+            ...video,
+            status: patch.status,
+            src: patch.src,
+            progressiveSrc: patch.progressiveSrc ?? video.progressiveSrc,
+          }
+        : video
+    ),
+  }));
+}
+
+export function patchVideoPackaging(
+  queryClient: QueryClient,
+  videoId: string,
+  patch: PackagingPatch
+) {
+  patchVideosQueries(queryClient, (pages) =>
+    withPackagingPatch(pages, videoId, patch)
+  );
+}
