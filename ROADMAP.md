@@ -67,6 +67,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Active video id stays in the URL via `history.replaceState`
 - Share copies / shares a `/?v=` link
 
+## Step 11 — Follow UX polish ✅
+
+- Hide Follow on your own videos
+- Following empty state suggests creators (`GET /api/creators/suggested`)
+- One-tap Follow from suggestions; jump back to For You
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

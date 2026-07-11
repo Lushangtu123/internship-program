@@ -9,7 +9,7 @@ import { AuthBar } from '@/components/AuthBar';
 import { UploadButton } from '@/components/UploadButton';
 import { FeedTabs } from '@/components/FeedTabs';
 import { NotificationBell } from '@/components/NotificationBell';
-import { useKeyboardShortcuts } from '@/lib/keyboard';
+import { FollowingEmptyState } from '@/components/FollowingEmptyState';import { useKeyboardShortcuts } from '@/lib/keyboard';
 import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
 import { useVideoPrefetch } from '@/lib/usePrefetch';
@@ -224,22 +224,20 @@ function FeedPageContent() {
         style={{ scrollSnapType: 'y mandatory' }}
       >
         {videos.length === 0 ? (
-          <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
-            <p className="text-lg font-semibold">
-              {feedMode === 'following'
-                ? 'No following videos yet'
-                : feedMode === 'saved'
-                  ? 'No saved videos yet'
-                  : 'No videos'}
-            </p>
-            <p className="text-sm text-white/60">
-              {feedMode === 'following'
-                ? 'Follow creators on For You, then check back here.'
-                : feedMode === 'saved'
+          feedMode === 'following' ? (
+            <FollowingEmptyState onGoForYou={() => setFeedMode('foryou')} />
+          ) : (
+            <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
+              <p className="text-lg font-semibold">
+                {feedMode === 'saved' ? 'No saved videos yet' : 'No videos'}
+              </p>
+              <p className="text-sm text-white/60">
+                {feedMode === 'saved'
                   ? 'Tap the bookmark on a video to save it here.'
                   : 'Upload a video to get started.'}
-            </p>
-          </div>
+              </p>
+            </div>
+          )
         ) : (
           videos.map((video, index) => (
             <VideoCard

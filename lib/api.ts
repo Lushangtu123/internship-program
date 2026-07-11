@@ -110,6 +110,26 @@ export async function fetchCreatorProfile(creatorId: string) {
   };
 }
 
+export type SuggestedCreator = {
+  id: string;
+  handle: string;
+  avatar: string;
+  name?: string;
+  videoCount: number;
+  isFollowing: boolean;
+};
+
+export async function fetchSuggestedCreators(
+  limit = 6
+): Promise<SuggestedCreator[]> {
+  const response = await apiFetch(
+    `${API_BASE}/creators/suggested?limit=${limit}`
+  );
+  if (!response.ok) throw new Error('Failed to fetch suggestions');
+  const data = await response.json();
+  return data.items as SuggestedCreator[];
+}
+
 export async function likeVideo(videoId: string): Promise<LikeResponse> {
   const response = await apiFetch(`${API_BASE}/videos/${videoId}/like`, {
     method: 'POST',

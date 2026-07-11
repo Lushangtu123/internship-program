@@ -377,6 +377,54 @@ export async function listVideos(
   return { items, nextCursor };
 }
 
+export interface SuggestedCreator {
+  id: string;
+  handle: string;
+  avatar: string;
+  name?: string;
+  videoCount: number;
+  isFollowing: boolean;
+}
+
+export async function listSuggestedCreators(
+  userId: string,
+  limit = 6,
+  dataDir?: string
+): Promise<SuggestedCreator[]> {
+  const store = await ensureStore(dataDir);
+  const following = new Set(store.follows[userId] ?? []);
+  const ranked = rankVideos(store.videos, store.signals);
+
+  const suggestions: SuggestedCreator[] = [];
+  const seen = new Set<string>();
+
+  for (const video of ranked) {
+    const creatorId = video.creator.id;
+    if (
+      !creatorId ||
+      seen.has(creatorId) ||
+      creatorId === userId ||
+      following.has(creatorId)
+    ) {
+      continue;
+    }
+    seen.add(creatorId);
+    const videoCount = store.videos.filter((v) => v.creator.id === creatorId)
+      .length;
+    suggestions.push({
+      id: creatorId,
+      handle: video.creator.handle,
+      avatar: video.creator.avatar,
+      name: video.creator.name,
+      videoCount,
+      isFollowing: false,
+    });
+    if (suggestions.length >= limit) break;
+  }
+
+  return suggestions;
+}
+
 export async function toggleFollow(
   followerId: string,
   creatorId: string,
