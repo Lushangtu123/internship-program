@@ -53,7 +53,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 
 - `POST /api/videos/:id/save` toggles a per-user bookmark
 - `GET /api/videos?feed=saved` returns saved videos (newest first)
-- Bookmark control on each card; top tab **Saved**
+- Bookmark control on each card; **Saved** lives on your profile (Videos | Saved)
+
+## UI polish — move Saved off the feed chrome ✅
+
+- Top feed tabs are only **For You | Following**
+- Own profile page hosts the Saved grid
 
 ## Step 9 — Notifications ✅
 

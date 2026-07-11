@@ -20,9 +20,7 @@ import { useSearchParams } from 'next/navigation';
 function FeedPageContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
-  const [feedMode, setFeedMode] = useState<'foryou' | 'following' | 'saved'>(
-    'foryou'
-  );
+  const [feedMode, setFeedMode] = useState<'foryou' | 'following'>('foryou');
   const containerRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
@@ -228,13 +226,9 @@ function FeedPageContent() {
             <FollowingEmptyState onGoForYou={() => setFeedMode('foryou')} />
           ) : (
             <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
-              <p className="text-lg font-semibold">
-                {feedMode === 'saved' ? 'No saved videos yet' : 'No videos'}
-              </p>
+              <p className="text-lg font-semibold">No videos</p>
               <p className="text-sm text-white/60">
-                {feedMode === 'saved'
-                  ? 'Tap the bookmark on a video to save it here.'
-                  : 'Upload a video to get started.'}
+                Upload a video to get started.
               </p>
             </div>
           )

@@ -5,8 +5,52 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
-import { fetchCreatorProfile, fetchMe, toggleFollowCreator } from '@/lib/api';
+import {
+  fetchCreatorProfile,
+  fetchMe,
+  fetchVideos,
+  toggleFollowCreator,
+} from '@/lib/api';
 import { formatNumber } from '@/lib/utils';
+import type { Video } from '@/types/video';
+
+type ProfileTab = 'videos' | 'saved';
+
+function VideoGrid({
+  videos,
+  emptyText,
+}: {
+  videos: Video[];
+  emptyText: string;
+}) {
+  if (videos.length === 0) {
+    return (
+      <p className="px-2 py-8 text-center text-sm text-white/50">{emptyText}</p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-1">
+      {videos.map((video) => (
+        <Link
+          key={video.id}
+          href={`/?v=${video.id}`}
+          className="relative aspect-[9/16] overflow-hidden bg-zinc-900"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={video.poster}
+            alt={video.caption}
+            className="h-full w-full object-cover"
+          />
+          <span className="absolute bottom-1 left-1 text-[10px] font-medium text-white drop-shadow">
+            {formatNumber(video.stats.likes)}
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 export default function CreatorProfilePage() {
   const params = useParams<{ id: string }>();
@@ -27,12 +71,19 @@ export default function CreatorProfilePage() {
 
   const [followPending, setFollowPending] = useState(false);
   const [following, setFollowing] = useState<boolean | null>(null);
+  const [tab, setTab] = useState<ProfileTab>('videos');
 
   const isFollowing = following ?? data?.isFollowing ?? false;
   const isSelf = Boolean(me?.id && data?.creator.id === me.id);
 
+  const { data: savedData, isLoading: savedLoading } = useQuery({
+    queryKey: ['videos', 'saved'],
+    queryFn: () => fetchVideos(null, 50, 'saved'),
+    enabled: isSelf && tab === 'saved',
+  });
+
   const onFollow = async () => {
-    if (!data || followPending) return;
+    if (!data || followPending || isSelf) return;
     const next = !isFollowing;
     setFollowing(next);
     setFollowPending(true);
@@ -73,7 +124,7 @@ export default function CreatorProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-zinc-950 text-white pb-8">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-zinc-950/90 px-4 py-3 backdrop-blur">
         <Link
           href="/"
@@ -145,31 +196,48 @@ export default function CreatorProfilePage() {
         )}
       </section>
 
-      <section className="border-t border-white/10 px-2 py-3">
-        {data.videos.length === 0 ? (
+      {isSelf && (
+        <div className="flex border-t border-white/10">
+          <button
+            type="button"
+            onClick={() => setTab('videos')}
+            className={`flex-1 py-3 text-sm font-semibold ${
+              tab === 'videos'
+                ? 'border-b-2 border-white text-white'
+                : 'text-white/50'
+            }`}
+          >
+            Videos
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('saved')}
+            className={`flex-1 py-3 text-sm font-semibold ${
+              tab === 'saved'
+                ? 'border-b-2 border-white text-white'
+                : 'text-white/50'
+            }`}
+          >
+            Saved
+          </button>
+        </div>
+      )}
+
+      <section className={`px-2 py-3 ${isSelf ? '' : 'border-t border-white/10'}`}>
+        {!isSelf || tab === 'videos' ? (
+          <VideoGrid
+            videos={data.videos}
+            emptyText="No videos yet"
+          />
+        ) : savedLoading ? (
           <p className="px-2 py-8 text-center text-sm text-white/50">
-            No videos yet
+            Loading…
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-1">
-            {data.videos.map((video) => (
-              <Link
-                key={video.id}
-                href={`/?v=${video.id}`}
-                className="relative aspect-[9/16] overflow-hidden bg-zinc-900"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={video.poster}
-                  alt={video.caption}
-                  className="h-full w-full object-cover"
-                />
-                <span className="absolute bottom-1 left-1 text-[10px] font-medium text-white drop-shadow">
-                  {formatNumber(video.stats.likes)}
-                </span>
-              </Link>
-            ))}
-          </div>
+          <VideoGrid
+            videos={savedData?.items ?? []}
+            emptyText="No saved videos yet. Tap the bookmark on a video to save it here."
+          />
         )}
       </section>
     </div>
