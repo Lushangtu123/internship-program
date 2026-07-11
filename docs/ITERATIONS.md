@@ -357,7 +357,7 @@
   - `NotificationType` 增加 `message`；`conversationId` 字段 + SQLite 列迁移
   - `sendMessage` 给对方 `pushNotification` + `opInsertNotification`
   - 深链 `/inbox/c/...`；Inbox 文案带预览
-- **结果**：待提交后回填。
+- **结果**：提交：`efc3d76`；`npm test` 80 通过。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---
