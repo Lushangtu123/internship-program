@@ -66,7 +66,7 @@
   - `notificationTargetHref`：like → `/?v=`；comment → `/?v=&c=1`；follow → `/creator/[id]`
   - `NotificationSheet` 行改为可点 `Link`
   - Feed：`?v=` 强制 For You；滚到目标后若带 `c=1` 则打开评论抽屉并清掉 `c`
-- **结果**：Inbox 可导航；评论通知直接看到评论。提交：见本次 main
+- **结果**：Inbox 可导航；评论通知直接看到评论。提交：`a014044`
 - **后续**：游客注册原地升级；发评同步角标；上传后跳新视频（确认项继续直接进 main）。
 
 ---
