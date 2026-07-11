@@ -1,89 +1,89 @@
 # Short Video Feed — TikTok-style Web App
 
-一个高性能的短视频「为你推荐」信息流 Web 应用：垂直全屏滚动、视口自动播放、双击点赞、评论抽屉、键盘快捷键，以及轻量 QoE 监控。
+A high-performance short-video “For You” feed for the web: full-viewport vertical scrolling, viewport-based autoplay, double-tap likes, a comments drawer, keyboard shortcuts, and lightweight QoE monitoring.
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38bdf8?style=flat-square&logo=tailwind-css)
 
-## 功能特性
+## Features
 
-### 核心体验
-- **垂直信息流** — 每屏一个视频，无限滚动（游标分页）
-- **自动播放 / 暂停** — `IntersectionObserver`（约 70% 可见时播放）
-- **手动播放 / 暂停** — 单击视频或空格键切换
-- **双击点赞** — TikTok 风格动画 + 乐观更新
-- **评论抽屉** — 移动端底部抽屉 / 桌面端侧栏，支持发送与乐观追加
-- **分享** — Web Share API（不支持时回退）
-- **收藏** — 本地 UI 切换
-- **音量控制** — 全局静音 / 取消静音
-- **字幕开关** — 可选 `<track>` 字幕显示（示例见 `public/captions/`）
-- **调试面板** — 访问 `/?debug=1` 查看 QoE 指标
+### Core experience
+- **Vertical feed** — one video per screen, infinite scroll (cursor pagination)
+- **Autoplay / pause** — `IntersectionObserver` (plays at ~70% visibility)
+- **Manual play / pause** — tap the video or press Space
+- **Double-tap like** — TikTok-style animation with optimistic updates
+- **Comments drawer** — bottom sheet on mobile / side panel on desktop, with optimistic posts
+- **Share** — Web Share API with clipboard fallback
+- **Save** — local UI toggle
+- **Volume** — global mute / unmute
+- **Captions** — optional `<track>` captions (samples in `public/captions/`)
+- **Debug panel** — open `/?debug=1` for QoE metrics
 
-### 键盘快捷键
+### Keyboard shortcuts
 
-| 按键 | 操作 |
+| Key | Action |
 |------|------|
-| `J` / `↓` | 下一个视频 |
-| `K` / `↑` | 上一个视频 |
-| `Space` | 播放 / 暂停 |
-| `M` | 静音 / 取消静音 |
-| `C` | 开关字幕 |
-| `/` | 聚焦评论输入框 |
+| `J` / `↓` | Next video |
+| `K` / `↑` | Previous video |
+| `Space` | Play / pause |
+| `M` | Mute / unmute |
+| `C` | Toggle captions |
+| `/` | Focus comment input |
 
-### 性能与体验
-- 相邻视频预加载（`usePrefetch`）
-- IntersectionObserver 防抖，减少误触发
-- 点赞 / 评论乐观 UI
-- QoE：首帧时间（TTFF）、卡顿次数与时长等（可上报 `/api/telemetry`）
+### Performance
+- Prefetch adjacent videos (`usePrefetch`)
+- Debounced IntersectionObserver to reduce spurious toggles
+- Optimistic UI for likes and comments
+- QoE: TTFF, stall count/duration, and more (optional POST to `/api/telemetry`)
 
-## 技术栈
+## Tech stack
 
-| 类别 | 选型 |
+| Area | Choice |
 |------|------|
-| 框架 | Next.js 14（App Router）+ TypeScript |
-| UI | Tailwind CSS + shadcn/ui 风格组件 |
-| 状态 | Zustand（UI）+ TanStack React Query（服务端数据） |
-| 测试 | Vitest（单元）+ Playwright（E2E） |
-| 性能 | Lighthouse CI（`lhci`） |
+| Framework | Next.js 14 (App Router) + TypeScript |
+| UI | Tailwind CSS + shadcn/ui-style components |
+| State | Zustand (UI) + TanStack React Query (server data) |
+| Testing | Vitest (unit) + Playwright (E2E) |
+| Performance | Lighthouse CI (`lhci`) |
 
-## 快速开始
+## Quick start
 
-### 前置要求
+### Requirements
 
 - Node.js ≥ 18
-- npm（或 pnpm / yarn）
+- npm (or pnpm / yarn)
 
-### 安装与开发
+### Install and develop
 
 ```bash
 npm install
 npm run dev
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)。
+Open [http://localhost:3000](http://localhost:3000).
 
-调试面板：[http://localhost:3000?debug=1](http://localhost:3000?debug=1)
+Debug panel: [http://localhost:3000?debug=1](http://localhost:3000?debug=1)
 
-### 构建与生产
+### Production build
 
 ```bash
 npm run build
 npm run start
 ```
 
-### 测试与检查
+### Tests and checks
 
 ```bash
-# 单元测试
+# Unit tests
 npm run test
 
-# E2E（首次需安装浏览器）
+# E2E (install browsers on first run)
 npx playwright install
 npm run e2e
 
-# 类型检查 / Lint
+# Typecheck / lint
 npm run typecheck
 npm run lint
 
@@ -91,15 +91,15 @@ npm run lint
 npm run lhci
 ```
 
-## 项目结构
+## Project structure
 
 ```
 internship-program/
 ├── app/
-│   ├── (feed)/              # 信息流（/）与布局
+│   ├── (feed)/              # Feed route (/) + layout
 │   ├── api/
-│   │   ├── videos/          # 列表 / 点赞 / 评论
-│   │   └── telemetry/       # QoE 上报
+│   │   ├── videos/          # List / like / comments
+│   │   └── telemetry/       # QoE ingest
 │   ├── layout.tsx
 │   └── providers.tsx
 ├── components/
@@ -113,65 +113,66 @@ internship-program/
 ├── types/
 ├── public/
 │   ├── mock/seed.json
+│   ├── videos/              # Local sample WebM clips
 │   ├── posters/
 │   ├── avatars/
 │   └── captions/
-├── docs/archive/            # 临时修复笔记归档
+├── docs/archive/            # Archived troubleshooting notes
 ├── __tests__/
 ├── e2e/
 ├── README.md
-└── CODING_GUIDE.md          # AI / 协作执行规范
+└── CODING_GUIDE.md          # AI / collaboration execution guide
 ```
 
 ## API
 
-| 方法 | 路径 | 说明 |
+| Method | Path | Description |
 |------|------|------|
-| `GET` | `/api/videos?limit=5&cursor=` | 视频列表（游标分页） |
-| `POST` | `/api/videos/:id/like` | 点赞 |
-| `GET` | `/api/videos/:id/comments` | 获取评论 |
-| `POST` | `/api/videos/:id/comments` | 发布评论 |
-| `POST` | `/api/telemetry` | QoE 遥测上报 |
+| `GET` | `/api/videos?limit=5&cursor=` | Video list (cursor pagination) |
+| `POST` | `/api/videos/:id/like` | Like a video |
+| `GET` | `/api/videos/:id/comments` | List comments |
+| `POST` | `/api/videos/:id/comments` | Post a comment |
+| `POST` | `/api/telemetry` | QoE telemetry |
 
-当前 API 为 Mock 实现；内容在 `public/mock/seed.json`。
+APIs are mock implementations. Content lives in `public/mock/seed.json`. Sample videos are local WebM files under `public/videos/` (reliable in Chromium without proprietary codecs).
 
-## 配置说明
+## Configuration
 
-- 可选环境变量：`NEXT_PUBLIC_CDN_ORIGIN`
-- 本地海报 / 头像 / 字幕位于 `public/posters`、`public/avatars`、`public/captions`
-- 修改 `seed.json` 可自定义视频列表与评论
+- Optional env: `NEXT_PUBLIC_CDN_ORIGIN`
+- Local posters / avatars / captions: `public/posters`, `public/avatars`, `public/captions`
+- Edit `seed.json` to customize videos and comments
 
-## 性能目标
+## Performance targets
 
-| 指标 | 目标 |
+| Metric | Target |
 |------|------|
-| TTI | ≤ 1.5s（3G Fast / 中端设备） |
+| TTI | ≤ 1.5s (3G Fast / mid-range device) |
 | CLS | ≤ 0.02 |
-| 视频首帧（进入视口后） | ≤ 250ms（配合预加载） |
-| 初始路由 JS | < 200KB（gzip，见 Lighthouse CI 预算） |
+| Time to first frame (after entering viewport) | ≤ 250ms (with prefetch) |
+| Initial route JS | < 200KB gzip (see Lighthouse CI budget) |
 
-本地可用 `npm run lhci` 对照 `.lighthouserc.json`。
+Run `npm run lhci` against `.lighthouserc.json` locally.
 
-## 无障碍
+## Accessibility
 
-- 键盘可完整操作（快捷键 + 可见焦点）
-- 关键控件带 ARIA 标签
-- 尊重 `prefers-reduced-motion`
-- 字幕通过 `<track kind="captions">` 支持
+- Full keyboard control (shortcuts + visible focus)
+- ARIA labels on key controls
+- Respects `prefers-reduced-motion`
+- Captions via `<track kind="captions">`
 
-## 文档索引
+## Docs
 
-| 文档 | 用途 |
+| Doc | Purpose |
 |------|------|
-| [QUICKSTART.md](./QUICKSTART.md) | 快速上手 |
-| [CODING_GUIDE.md](./CODING_GUIDE.md) | 需求与 AI 执行规范 |
-| [README_PROJECT.md](./README_PROJECT.md) | 设计与实现说明 |
-| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | 故障排查 |
-| [COMMENT_GUIDE.md](./COMMENT_GUIDE.md) | 评论功能 |
-| [PAUSE_FEATURE_GUIDE.md](./PAUSE_FEATURE_GUIDE.md) | 暂停 / 播放交互 |
-| [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) | 功能摘要与后续建议 |
-| [docs/archive/](./docs/archive/) | 历史排查笔记（归档） |
+| [QUICKSTART.md](./QUICKSTART.md) | Quick start |
+| [CODING_GUIDE.md](./CODING_GUIDE.md) | Requirements & AI execution protocol |
+| [README_PROJECT.md](./README_PROJECT.md) | Design & implementation notes |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Troubleshooting |
+| [COMMENT_GUIDE.md](./COMMENT_GUIDE.md) | Comments feature |
+| [PAUSE_FEATURE_GUIDE.md](./PAUSE_FEATURE_GUIDE.md) | Play / pause interactions |
+| [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) | Feature summary & next ideas |
+| [docs/archive/](./docs/archive/) | Historical investigation notes |
 
-## 许可证
+## License
 
 MIT License
