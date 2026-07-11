@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRef, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Play, Pause, Volume2, VolumeX, MoreVertical } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { Video } from '@/types/video';
 import { ActionsBar } from './ActionsBar';
 import { CaptionBadge } from './CaptionBadge';
@@ -315,23 +315,16 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
         </button>
       )}
 
-      {/* Top Controls */}
+      {/* Top Controls — reserved; more menu removed until actions exist */}
       <div
         className={cn(
-          'absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/50 to-transparent transition-opacity',
+          'absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/40 to-transparent transition-opacity pointer-events-none',
           showControls ? 'opacity-100' : 'opacity-0'
         )}
-      >
-        <button
-          className="ml-auto block p-2 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/50"
-          aria-label="More options"
-        >
-          <MoreVertical className="w-5 h-5 text-white" />
-        </button>
-      </div>
+      />
 
       {/* Bottom Overlay: Creator Info & Actions */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 pb-safe bg-gradient-to-t from-black/70 via-black/30 to-transparent">
+      <div className="absolute bottom-14 left-0 right-0 p-4 bg-gradient-to-t from-black/70 via-black/30 to-transparent">
         <div className="flex items-end justify-between gap-4">
           {/* Left: Creator & Caption */}
           <div className="flex-1 min-w-0 space-y-3">
@@ -373,7 +366,8 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
                     {localFollowing ? 'Following' : 'Follow'}
                   </button>
                 )}
-              </div>            </div>
+              </div>
+            </div>
 
             {/* Caption */}
             <p className="text-white text-sm line-clamp-2">{video.caption}</p>
@@ -383,7 +377,7 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
           </div>
 
           {/* Right: Actions Bar */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 mb-2">
             <ActionsBar
               stats={{ ...video.stats, likes: localLikes }}
               liked={localLiked}
@@ -397,16 +391,16 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
         </div>
       </div>
 
-      {/* Bottom Right: Mute Control */}
+      {/* Mute — kept subtle, above the action column */}
       <button
         onClick={(e) => toggleMute(e)}
-        className="absolute bottom-20 right-4 p-3 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/50 z-20"
+        className="absolute bottom-32 right-4 p-2.5 rounded-full bg-black/35 backdrop-blur-sm hover:bg-black/50 z-20"
         aria-label={isMuted ? 'Unmute' : 'Mute'}
       >
         {isMuted ? (
-          <VolumeX className="w-5 h-5 text-white" />
+          <VolumeX className="w-4 h-4 text-white/90" />
         ) : (
-          <Volume2 className="w-5 h-5 text-white" />
+          <Volume2 className="w-4 h-4 text-white/90" />
         )}
       </button>
     </div>

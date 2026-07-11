@@ -6,10 +6,11 @@ import { VideoCard } from '@/components/VideoCard';
 import { CommentsDrawer } from '@/components/CommentsDrawer';
 import { DebugPanel } from '@/components/DebugPanel';
 import { AuthBar } from '@/components/AuthBar';
-import { UploadButton } from '@/components/UploadButton';
-import { FeedTabs } from '@/components/FeedTabs';
-import { NotificationBell } from '@/components/NotificationBell';
-import { FollowingEmptyState } from '@/components/FollowingEmptyState';import { useKeyboardShortcuts } from '@/lib/keyboard';
+import { BottomNav, type BottomNavTab } from '@/components/BottomNav';
+import { UploadSheet } from '@/components/UploadSheet';
+import { NotificationSheet } from '@/components/NotificationSheet';
+import { FollowingEmptyState } from '@/components/FollowingEmptyState';
+import { useKeyboardShortcuts } from '@/lib/keyboard';
 import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
 import { useVideoPrefetch } from '@/lib/usePrefetch';
@@ -21,18 +22,32 @@ function FeedPageContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [feedMode, setFeedMode] = useState<'foryou' | 'following'>('foryou');
+  const [sheet, setSheet] = useState<'upload' | 'inbox' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get('v');
-  
+
+  const navActive: BottomNavTab =
+    sheet === 'inbox'
+      ? 'inbox'
+      : sheet === 'upload'
+        ? 'create'
+        : feedMode === 'following'
+          ? 'following'
+          : 'home';
+
   const { commentsOpen, setCommentsOpen, toggleMute, toggleCaptions, debugMode, setDebugMode } = useUIStore();
 
-  // Check for debug mode in URL
+  // Optional deep-links from profile bottom nav
   useEffect(() => {
-    const debug = searchParams.get('debug') === '1';
-    setDebugMode(debug);
-  }, [searchParams, setDebugMode]);
+    const feed = searchParams.get('feed');
+    if (feed === 'following') setFeedMode('following');
+    const sheetParam = searchParams.get('sheet');
+    if (sheetParam === 'upload' || sheetParam === 'inbox') {
+      setSheet(sheetParam);
+    }
+  }, [searchParams]);
 
   // Fetch videos with infinite scroll
   const {
@@ -206,14 +221,6 @@ function FeedPageContent() {
   return (
     <>
       <AuthBar />
-      <FeedTabs
-        mode={feedMode}
-        onChange={(mode) => {
-          setFeedMode(mode);
-        }}
-      />
-      <NotificationBell />
-      <UploadButton />
 
       {/* Feed Container */}
       <div
@@ -250,6 +257,29 @@ function FeedPageContent() {
           </div>
         )}
       </div>
+
+      <BottomNav
+        active={navActive}
+        onHome={() => {
+          setSheet(null);
+          setFeedMode('foryou');
+        }}
+        onFollowing={() => {
+          setSheet(null);
+          setFeedMode('following');
+        }}
+        onCreate={() =>
+          setSheet((s) => (s === 'upload' ? null : 'upload'))
+        }
+        onInbox={() =>
+          setSheet((s) => (s === 'inbox' ? null : 'inbox'))
+        }
+      />
+      <UploadSheet open={sheet === 'upload'} onClose={() => setSheet(null)} />
+      <NotificationSheet
+        open={sheet === 'inbox'}
+        onClose={() => setSheet(null)}
+      />
 
       {/* Comments Drawer */}
       {selectedVideoId && (

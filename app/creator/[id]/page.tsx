@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import { formatNumber } from '@/lib/utils';
 import type { Video } from '@/types/video';
+import { BottomNav } from '@/components/BottomNav';
 
 type ProfileTab = 'videos' | 'saved';
 
@@ -124,7 +125,7 @@ export default function CreatorProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white pb-8">
+    <div className="min-h-screen bg-zinc-950 text-white pb-20">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-zinc-950/90 px-4 py-3 backdrop-blur">
         <Link
           href="/"
@@ -240,6 +241,14 @@ export default function CreatorProfilePage() {
           />
         )}
       </section>
+
+      <BottomNav
+        active="me"
+        onHome={() => router.push('/')}
+        onFollowing={() => router.push('/?feed=following')}
+        onCreate={() => router.push('/?sheet=upload')}
+        onInbox={() => router.push('/?sheet=inbox')}
+      />
     </div>
   );
 }

@@ -55,10 +55,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - `GET /api/videos?feed=saved` returns saved videos (newest first)
 - Bookmark control on each card; **Saved** lives on your profile (Videos | Saved)
 
-## UI polish — move Saved off the feed chrome ✅
+## UI polish — feed chrome ✅
 
-- Top feed tabs are only **For You | Following**
-- Own profile page hosts the Saved grid
+- Top feed chrome no longer hosts Saved / upload / bell clutter
+- Bottom nav: **Home | Following | Create | Inbox | Me**
+- Own profile hosts **Videos | Saved**
+- Upload + inbox open as sheets above the nav
 
 ## Step 9 — Notifications ✅
 

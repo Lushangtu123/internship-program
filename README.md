@@ -15,8 +15,8 @@ A high-performance short-video “For You” feed for the web: full-viewport ver
 - **Manual play / pause** — tap the video or press Space
 - **Double-tap like** — TikTok-style animation with optimistic updates
 - **Comments drawer** — bottom sheet on mobile / side panel on desktop, with optimistic posts and one-level replies
+- **Save** — per-user bookmarks on your profile (**Videos | Saved**)
 - **Share** — Web Share API with clipboard fallback (`/?v={id}` deep link)
-- **Save** — per-user bookmarks with a **Saved** feed tab
 - **Volume** — global mute / unmute
 - **Captions** — optional `<track>` captions (samples in `public/captions/`)
 - **Debug panel** — open `/?debug=1` for QoE metrics

@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchMe, login, logout, register, type AuthUser } from '@/lib/api';
 
+/** Compact auth controls for guests / sign-out. Profile lives in bottom nav Me. */
 export function AuthBar() {
   const queryClient = useQueryClient();
   const { data: user, isLoading } = useQuery({
@@ -50,35 +50,15 @@ export function AuthBar() {
     await refresh();
   };
 
-  const identityLabel = isLoading
-    ? '…'
-    : user
-      ? user.isGuest
-        ? `Guest · ${user.username}`
-        : `@${user.username}`
-      : 'Signed out';
+  if (isLoading) return null;
 
   return (
     <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
-      {user ? (
-        <Link
-          href={`/creator/${user.id}`}
-          className="rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-xs text-white hover:bg-black/70"
-          aria-label="Open my profile"
-        >
-          {identityLabel}
-        </Link>
-      ) : (
-        <div className="rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-xs text-white">
-          {identityLabel}
-        </div>
-      )}
-
       {user && !user.isGuest ? (
         <button
           type="button"
           onClick={onLogout}
-          className="rounded-full bg-white/15 px-3 py-1.5 text-xs text-white hover:bg-white/25"
+          className="rounded-full bg-black/45 px-3 py-1.5 text-xs text-white/80 backdrop-blur-sm hover:bg-black/60"
         >
           Log out
         </button>
@@ -136,7 +116,11 @@ export function AuthBar() {
             disabled={pending}
             className="w-full rounded-md bg-white py-1.5 text-sm font-medium text-black disabled:opacity-60"
           >
-            {pending ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'}
+            {pending
+              ? 'Please wait…'
+              : mode === 'login'
+                ? 'Log in'
+                : 'Create account'}
           </button>
         </form>
       )}

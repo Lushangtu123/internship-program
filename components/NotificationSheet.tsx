@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell } from 'lucide-react';
 import {
   fetchNotifications,
   markNotificationsRead,
@@ -28,9 +27,13 @@ function notificationCopy(item: AppNotification) {
   return `${who} commented on your video`;
 }
 
-export function NotificationBell() {
+interface NotificationSheetProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function NotificationSheet({ open, onClose }: NotificationSheetProps) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['notifications'],
@@ -41,48 +44,52 @@ export function NotificationBell() {
   const unread = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
 
-  const onOpen = async () => {
-    const next = !open;
-    setOpen(next);
-    if (next && unread > 0) {
+  useEffect(() => {
+    if (!open || unread === 0) return;
+    let cancelled = false;
+    (async () => {
       try {
         await markNotificationsRead();
-        await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        if (!cancelled) {
+          await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        }
       } catch (err) {
         console.error(err);
       }
-    }
-  };
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, unread, queryClient]);
+
+  if (!open) return null;
 
   return (
-    <div className="absolute top-4 right-28 z-30">
+    <>
       <button
         type="button"
-        onClick={onOpen}
-        className="relative inline-flex items-center justify-center rounded-full bg-black/50 p-2 text-white backdrop-blur-sm hover:bg-black/70"
-        aria-label={
-          unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'
-        }
-      >
-        <Bell className="h-4 w-4" />
-        {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 min-w-[1rem] rounded-full bg-red-500 px-1 text-[10px] font-bold leading-4 text-white">
-            {unread > 99 ? '99+' : unread}
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-10 w-80 max-h-[70vh] overflow-y-auto rounded-xl border border-white/10 bg-zinc-900/95 text-white shadow-xl">
-          <div className="sticky top-0 border-b border-white/10 bg-zinc-900/95 px-3 py-2 text-sm font-semibold">
-            Notifications
-          </div>
+        className="fixed inset-0 z-40 bg-black/50"
+        aria-label="Close notifications"
+        onClick={onClose}
+      />
+      <div className="fixed bottom-20 left-1/2 z-50 flex max-h-[70vh] w-[min(100%-2rem,24rem)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <h2 className="text-sm font-semibold">Inbox</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs text-white/60 hover:text-white"
+          >
+            Close
+          </button>
+        </div>
+        <div className="overflow-y-auto">
           {isLoading ? (
-            <p className="px-3 py-6 text-center text-sm text-white/50">
+            <p className="px-4 py-8 text-center text-sm text-white/50">
               Loading…
             </p>
           ) : items.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-white/50">
+            <p className="px-4 py-8 text-center text-sm text-white/50">
               No notifications yet
             </p>
           ) : (
@@ -90,7 +97,7 @@ export function NotificationBell() {
               {items.map((item) => (
                 <li
                   key={item.id}
-                  className={`flex gap-2 px-3 py-2.5 text-sm ${
+                  className={`flex gap-2 px-4 py-3 text-sm ${
                     item.read ? 'opacity-70' : 'bg-white/5'
                   }`}
                 >
@@ -111,7 +118,17 @@ export function NotificationBell() {
             </ul>
           )}
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
+}
+
+/** Unread count for the bottom-nav badge */
+export function useNotificationUnread() {
+  const { data } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => fetchNotifications(30),
+    refetchInterval: 30_000,
+  });
+  return data?.unreadCount ?? 0;
 }
