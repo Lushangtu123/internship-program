@@ -48,6 +48,13 @@ function FeedPageContent() {
     }
   }, [searchParams]);
 
+  // Inbox / share deep links always land on For You and close sheets
+  useEffect(() => {
+    if (!deepLinkId) return;
+    setFeedMode('foryou');
+    setSheet(null);
+  }, [deepLinkId]);
+
   // Fetch videos with infinite scroll
   const {
     data,

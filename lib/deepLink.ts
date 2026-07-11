@@ -25,3 +25,18 @@ export function findVideoIndex(
   if (!videoId) return -1;
   return videos.findIndex((video) => video.id === videoId);
 }
+
+/** Inbox row target: video deep link, or actor profile for follows. */
+export function notificationTargetHref(item: {
+  type: string;
+  videoId?: string;
+  actorId: string;
+}): string | null {
+  if (item.type === 'follow') {
+    return item.actorId ? `/creator/${item.actorId}` : null;
+  }
+  if (item.videoId) {
+    return `/?v=${encodeURIComponent(item.videoId)}`;
+  }
+  return item.actorId ? `/creator/${item.actorId}` : null;
+}
