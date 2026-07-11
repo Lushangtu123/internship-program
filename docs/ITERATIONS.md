@@ -221,7 +221,7 @@
   - Node 内置 `node:sqlite`（WAL）存 `store_snapshot` 原子快照
   - `feedStore` API 不变，只换 `ensureStore` / `persist`
   - 首次启动若仍有 `store.json` 则迁入 SQLite 并改名为 `.migrated`
-- **结果**：见本条合入 commit；规范化表结构 / 对象存储 / ABR 仍后续。
+- **结果**：提交：`a5d02d8`；规范化表结构 / 对象存储 / ABR 仍后续。
 - **后续**：确认后可合 main；下一步优先对象存储或 ABR。
 
 ---
