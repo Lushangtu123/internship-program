@@ -92,6 +92,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - AuthBar identity chip links to `/creator/[me]`
 - Profile page hides Follow when viewing yourself
 
+## Step 15 — Tappable inbox notifications ✅
+
+- Like / comment rows open `/?v={videoId}`
+- Follow rows open `/creator/{actorId}`
+- Deep link forces For You + closes sheets so navigation works from Inbox
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

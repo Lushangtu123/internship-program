@@ -59,6 +59,16 @@
 - **结果**：信息流顶层无账号控件；账号能力集中在 Me。提交：`c1b4dc8`（跳转补丁见后续 commit）
 - **后续**：可考虑在 Following 空态与 Inbox 空态强化引导注册；静音可并进首次手势提示。
 
+### 2026-07-11 — Step 15：Inbox 通知可点进视频 / 主页
+
+- **问题**：通知列表只有文案，点了无处可去；like/comment 已带 `videoId`、follow 已带 `actorId`，却是死胡同。
+- **方法**：
+  - `notificationTargetHref`：like/comment → `/?v=`；follow → `/creator/[actorId]`
+  - `NotificationSheet` 行改为 `Link`，点击关闭 sheet
+  - Feed 收到 `?v=` 时强制切回 For You 并关掉 sheet，保证从 Following/Inbox 也能跳到目标视频
+- **结果**：Inbox 可导航到对应内容。提交：见本分支
+- **后续**：评论类通知可再带上自动打开评论抽屉；评论数角标同步。
+
 ---
 
-<!-- 新条目追加在上方「---」之前。 -->
+<!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->

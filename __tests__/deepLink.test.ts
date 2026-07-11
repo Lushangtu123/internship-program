@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildVideoDeepLink, findVideoIndex } from '@/lib/deepLink';
+import {
+  buildVideoDeepLink,
+  findVideoIndex,
+  notificationTargetHref,
+} from '@/lib/deepLink';
 
 describe('deepLink helpers', () => {
   it('builds a share URL with v= and preserves other params', () => {
@@ -16,5 +20,34 @@ describe('deepLink helpers', () => {
     expect(findVideoIndex(videos, 'b')).toBe(1);
     expect(findVideoIndex(videos, 'missing')).toBe(-1);
     expect(findVideoIndex(videos, null)).toBe(-1);
+  });
+
+  it('maps notifications to video or profile hrefs', () => {
+    expect(
+      notificationTargetHref({
+        type: 'like',
+        videoId: 'v_001',
+        actorId: 'u_2',
+      })
+    ).toBe('/?v=v_001');
+    expect(
+      notificationTargetHref({
+        type: 'comment',
+        videoId: 'v_009',
+        actorId: 'u_2',
+      })
+    ).toBe('/?v=v_009');
+    expect(
+      notificationTargetHref({
+        type: 'follow',
+        actorId: 'u_3',
+      })
+    ).toBe('/creator/u_3');
+    expect(
+      notificationTargetHref({
+        type: 'like',
+        actorId: 'u_2',
+      })
+    ).toBe('/creator/u_2');
   });
 });
