@@ -176,6 +176,7 @@ Run `npm run lhci` against `.lighthouserc.json` locally.
 | Doc | Purpose |
 |------|------|
 | [ROADMAP.md](./ROADMAP.md) | Incremental product steps |
+| [docs/ITERATIONS.md](./docs/ITERATIONS.md) | 每次更新的问题 / 方法 / 结果 |
 | [QUICKSTART.md](./QUICKSTART.md) | Quick start |
 | [CODING_GUIDE.md](./CODING_GUIDE.md) | Requirements & AI execution protocol |
 | [README_PROJECT.md](./README_PROJECT.md) | Design & implementation notes |

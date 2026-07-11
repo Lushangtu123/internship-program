@@ -14,6 +14,7 @@ import {
 import { formatNumber } from '@/lib/utils';
 import type { Video } from '@/types/video';
 import { BottomNav } from '@/components/BottomNav';
+import { ProfileAuthPanel } from '@/components/ProfileAuthPanel';
 
 type ProfileTab = 'videos' | 'saved';
 
@@ -192,9 +193,7 @@ export default function CreatorProfilePage() {
             {isFollowing ? 'Following' : 'Follow'}
           </button>
         )}
-        {isSelf && (
-          <p className="mt-5 text-center text-sm text-white/50">This is you</p>
-        )}
+        {isSelf && me && <ProfileAuthPanel user={me} />}
       </section>
 
       {isSelf && (

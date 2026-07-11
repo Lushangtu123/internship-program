@@ -5,7 +5,6 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { VideoCard } from '@/components/VideoCard';
 import { CommentsDrawer } from '@/components/CommentsDrawer';
 import { DebugPanel } from '@/components/DebugPanel';
-import { AuthBar } from '@/components/AuthBar';
 import { BottomNav, type BottomNavTab } from '@/components/BottomNav';
 import { UploadSheet } from '@/components/UploadSheet';
 import { NotificationSheet } from '@/components/NotificationSheet';
@@ -221,8 +220,6 @@ function FeedPageContent() {
 
   return (
     <>
-      <AuthBar />
-
       {/* Feed Container */}
       <div
         ref={containerRef}

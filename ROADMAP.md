@@ -58,9 +58,10 @@ Completed work lands on `main`; experimental ideas stay on branches.
 ## UI polish — feed chrome ✅
 
 - Bottom nav: **Home | Following | Create | Inbox | Me**
-- Own profile hosts **Videos | Saved**
+- Own profile hosts **Videos | Saved** + sign-in / log-out
 - Upload + inbox open as dark sheets above the nav
 - Desktop: centered phone frame (`max-w-md`); comments drawer matches dark feed
+- Iteration log: [`docs/ITERATIONS.md`](./docs/ITERATIONS.md)
 
 ## Step 9 — Notifications ✅
 
