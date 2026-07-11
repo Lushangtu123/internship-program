@@ -31,6 +31,9 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = isMuted;
+      if (!isMuted) {
+        videoRef.current.volume = 1;
+      }
     }
   }, [isMuted]);
 
@@ -155,7 +158,8 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
     }
   };
 
-  const toggleMute = () => {
+  const toggleMute = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     useUIStore.getState().toggleMute();
   };
 
@@ -294,8 +298,8 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
 
       {/* Bottom Right: Mute Control */}
       <button
-        onClick={toggleMute}
-        className="absolute bottom-20 right-4 p-3 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/50"
+        onClick={(e) => toggleMute(e)}
+        className="absolute bottom-20 right-4 p-3 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/50 z-20"
         aria-label={isMuted ? 'Unmute' : 'Mute'}
       >
         {isMuted ? (

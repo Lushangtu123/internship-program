@@ -42,12 +42,15 @@ test.describe('Video Feed', () => {
   });
 
   test('should toggle mute', async ({ page }) => {
-    const muteButton = page.getByLabel(/mute|unmute/i).first();
+    const video = page.locator('video').first();
+
+    // Autoplay starts muted
+    await expect.poll(async () => video.evaluate((v: HTMLVideoElement) => v.muted)).toBe(true);
+
+    const muteButton = page.getByLabel(/unmute/i).first();
     await muteButton.click();
 
-    const video = page.locator('video').first();
-    const isMuted = await video.evaluate((v: HTMLVideoElement) => v.muted);
-    expect(typeof isMuted).toBe('boolean');
+    await expect.poll(async () => video.evaluate((v: HTMLVideoElement) => v.muted)).toBe(false);
   });
 });
 
@@ -69,11 +72,11 @@ test.describe('Keyboard Navigation', () => {
   });
 
   test('should toggle mute with M key', async ({ page }) => {
-    await page.keyboard.press('m');
-
     const video = page.locator('video').first();
-    const isMuted = await video.evaluate((v: HTMLVideoElement) => v.muted);
-    expect(typeof isMuted).toBe('boolean');
+    await expect.poll(async () => video.evaluate((v: HTMLVideoElement) => v.muted)).toBe(true);
+
+    await page.keyboard.press('m');
+    await expect.poll(async () => video.evaluate((v: HTMLVideoElement) => v.muted)).toBe(false);
   });
 
   test('should open comments with / key', async ({ page }) => {
