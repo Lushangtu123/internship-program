@@ -15,11 +15,12 @@ A high-performance short-video “For You” feed for the web: full-viewport ver
 - **Manual play / pause** — tap the video or press Space
 - **Double-tap like** — TikTok-style animation with optimistic updates
 - **Comments drawer** — bottom sheet on mobile / side panel on desktop, with optimistic posts
-- **Share** — Web Share API with clipboard fallback
+- **Share** — Web Share API with clipboard fallback (`/?v={id}` deep link)
 - **Save** — local UI toggle
 - **Volume** — global mute / unmute
 - **Captions** — optional `<track>` captions (samples in `public/captions/`)
 - **Debug panel** — open `/?debug=1` for QoE metrics
+- **Deep link** — open `/?v={videoId}` to jump to that video in For You
 
 ### Keyboard shortcuts
 

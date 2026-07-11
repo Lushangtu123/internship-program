@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
+import { Suspense, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { VideoCard } from '@/components/VideoCard';
 import { CommentsDrawer } from '@/components/CommentsDrawer';
@@ -14,6 +14,7 @@ import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
 import { useVideoPrefetch } from '@/lib/usePrefetch';
 import { qoeLogger } from '@/lib/qoe';
+import { findVideoIndex } from '@/lib/deepLink';
 import { useSearchParams } from 'next/navigation';
 
 function FeedPageContent() {
@@ -23,7 +24,9 @@ function FeedPageContent() {
     'foryou'
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const deepLinkHandledRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
+  const deepLinkId = searchParams.get('v');
   
   const { commentsOpen, setCommentsOpen, toggleMute, toggleCaptions, debugMode, setDebugMode } = useUIStore();
 
@@ -47,10 +50,14 @@ function FeedPageContent() {
     initialPageParam: null as string | null,
   });
 
-  const videos = data?.pages.flatMap((page) => page.items) ?? [];
+  const videos = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data]
+  );
 
   useEffect(() => {
     setCurrentIndex(0);
+    deepLinkHandledRef.current = null;
     containerRef.current?.scrollTo({ top: 0 });
   }, [feedMode]);
 
@@ -58,7 +65,7 @@ function FeedPageContent() {
   useVideoPrefetch(currentIndex, videos, 2);
 
   // Scroll to video by index
-  const scrollToVideo = useCallback((index: number) => {
+  const scrollToVideo = useCallback((index: number, behavior: ScrollBehavior = 'smooth') => {
     if (index < 0 || index >= videos.length) return;
     
     const container = containerRef.current;
@@ -67,11 +74,48 @@ function FeedPageContent() {
     const targetScroll = index * window.innerHeight;
     container.scrollTo({
       top: targetScroll,
-      behavior: 'smooth',
+      behavior,
     });
 
     setCurrentIndex(index);
   }, [videos.length]);
+
+  // Deep link: load pages until ?v= is found, then jump
+  useEffect(() => {
+    if (!deepLinkId || feedMode !== 'foryou' || isLoading) return;
+    if (deepLinkHandledRef.current === deepLinkId) return;
+
+    const index = findVideoIndex(videos, deepLinkId);
+    if (index >= 0) {
+      deepLinkHandledRef.current = deepLinkId;
+      scrollToVideo(index, 'auto');
+      return;
+    }
+
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [
+    deepLinkId,
+    feedMode,
+    isLoading,
+    videos,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    scrollToVideo,
+  ]);
+
+  // Keep ?v= in sync with the active video for shareable URLs
+  useEffect(() => {
+    const id = videos[currentIndex]?.id;
+    if (!id || typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('v') === id) return;
+    url.searchParams.set('v', id);
+    const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
+    window.history.replaceState(null, '', next);
+  }, [currentIndex, videos]);
 
   // Handle scroll
   useEffect(() => {

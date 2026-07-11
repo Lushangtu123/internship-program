@@ -12,6 +12,7 @@ import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
 import { likeVideo, saveVideo, toggleFollowCreator } from '@/lib/api';
 import { trackComplete, trackPlay } from '@/lib/trackEngagement';
+import { buildVideoDeepLink } from '@/lib/deepLink';
 import { cn } from '@/lib/utils';
 
 interface VideoCardProps {
@@ -216,15 +217,19 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   };
 
   const handleShare = () => {
+    const url = buildVideoDeepLink(
+      window.location.origin,
+      video.id,
+      window.location.search
+    );
     if (navigator.share) {
       navigator.share({
         title: video.caption,
         text: `Check out this video by ${video.creator.handle}`,
-        url: window.location.href,
+        url,
       }).catch(console.error);
     } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
+      navigator.clipboard.writeText(url);
     }
   };
 

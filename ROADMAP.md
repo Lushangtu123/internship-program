@@ -61,6 +61,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - `GET /api/notifications` + `POST /api/notifications` (`action: read`)
 - Bell UI with unread badge on the feed
 
+## Step 10 — Deep link to a video ✅
+
+- `/?v={videoId}` loads For You pages until the video is found, then scrolls to it
+- Active video id stays in the URL via `history.replaceState`
+- Share copies / shares a `/?v=` link
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

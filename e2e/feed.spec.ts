@@ -113,15 +113,22 @@ test.describe('Comments', () => {
   });
 });
 
-test.describe('Debug Panel', () => {
-  test('should show debug panel with query param', async ({ page }) => {
-    await page.goto('/?debug=1');
-    await expect(page.getByText(/qoe debug panel/i)).toBeVisible();
-  });
+test.describe('Deep link', () => {
+  test('should scroll to the video in ?v=', async ({ page, request }) => {
+    const response = await request.get('/api/videos?limit=5&feed=foryou');
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.items.length).toBeGreaterThan(1);
+    const target = data.items[1];
 
-  test('should display metrics', async ({ page }) => {
-    await page.goto('/?debug=1');
-    await expect(page.getByText(/ttff/i)).toBeVisible();
-    await expect(page.getByText(/stalls/i)).toBeVisible();
+    await page.goto(`/?v=${target.id}`);
+    await page.locator('video').first().waitFor({ state: 'visible' });
+
+    const feed = page.locator('.h-screen.overflow-y-scroll').first();
+    await expect
+      .poll(async () => feed.evaluate((el) => el.scrollTop), { timeout: 10000 })
+      .toBeGreaterThan(100);
+
+    await expect(page.getByText(target.caption, { exact: false }).first()).toBeVisible();
   });
 });
