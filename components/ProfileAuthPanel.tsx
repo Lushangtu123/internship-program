@@ -87,6 +87,17 @@ export function ProfileAuthPanel({ user }: ProfileAuthPanelProps) {
       <p className="text-center text-xs text-white/50">
         Browsing as guest · {user.username}
       </p>
+      {mode === 'register' && (
+        <p className="text-center text-[11px] text-white/40">
+          Create an account to keep likes, saves, follows, and uploads.
+        </p>
+      )}
+      {mode === 'login' && (
+        <p className="text-center text-[11px] text-white/40">
+          Log in to an existing account (guest activity stays on this device
+          session).
+        </p>
+      )}
       <div className="flex gap-3 text-xs">
         <button
           type="button"

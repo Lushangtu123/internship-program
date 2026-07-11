@@ -95,6 +95,60 @@ describe('feedStore identity + persistence', () => {
     expect(bad).toMatchObject({ status: 401 });
   });
 
+  it('upgrades a guest in place and keeps likes / follows / uploads', async () => {
+    const guest = await createGuestUser(dataDir);
+    await toggleLike('v_001', guest.user.id, dataDir);
+    await toggleFollow(guest.user.id, 'u_1', dataDir);
+    await toggleSave('v_001', guest.user.id, dataDir);
+
+    const uploaded = await createVideo(
+      {
+        caption: 'guest upload',
+        src: '/uploads/x.mp4',
+        poster: '/uploads/x.jpg',
+        duration: 3,
+        user: guest.user,
+      },
+      dataDir
+    );
+    expect(uploaded.creator.id).toBe(guest.user.id);
+
+    const upgraded = await registerUser(
+      'carol',
+      'secret12',
+      dataDir,
+      guest.user.id
+    );
+    expect('user' in upgraded).toBe(true);
+    if (!('user' in upgraded)) return;
+
+    expect(upgraded.user.id).toBe(guest.user.id);
+    expect(upgraded.user.username).toBe('carol');
+    expect(upgraded.user.isGuest).toBe(false);
+
+    const page = await listVideos(null, 50, upgraded.user.id, dataDir);
+    expect(page.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
+    expect(page.items.find((v) => v.id === 'v_001')?.saved).toBe(true);
+
+    const following = await listVideos(
+      null,
+      50,
+      upgraded.user.id,
+      dataDir,
+      'following'
+    );
+    expect(following.items.some((v) => v.creator.id === 'u_1')).toBe(true);
+
+    const profile = await getCreatorProfile(upgraded.user.id, upgraded.user.id, dataDir);
+    expect('error' in profile).toBe(false);
+    if ('error' in profile) return;
+    expect(profile.creator.handle).toBe('@carol');
+    expect(profile.videos.some((v) => v.id === uploaded.id)).toBe(true);
+
+    const loggedIn = await loginUser('carol', 'secret12', dataDir);
+    expect('user' in loggedIn && loggedIn.user.id).toBe(guest.user.id);
+  });
+
   it('rejects empty comments', async () => {
     const guest = await createGuestUser(dataDir);
     const result = await addComment('v_001', '   ', guest.user, dataDir);

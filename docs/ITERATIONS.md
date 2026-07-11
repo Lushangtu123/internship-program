@@ -59,6 +59,17 @@
 - **结果**：信息流顶层无账号控件；账号能力集中在 Me。提交：`c1b4dc8`（跳转补丁见后续 commit）
 - **后续**：可考虑在 Following 空态与 Inbox 空态强化引导注册；静音可并进首次手势提示。
 
+### 2026-07-11 — Step 14：游客注册原地升级身份
+
+- **问题**：文档写 register 会「升级身份」，但实现一直 `newId` 新建用户，游客期间的赞/收藏/关注/上传全部 orphan，Me 上的注册 CTA 等于劝人丢数据。
+- **方法**：
+  - `registerUser(..., upgradeFromUserId)`：若当前是 guest，原地改 username / password / `isGuest=false`，**保留同一 `user.id`**
+  - `syncIdentityDisplay`：同步该用户视频 `creator`、评论、通知里的展示名
+  - `POST /api/auth` register 读取当前 session；guest 则传入升级 id
+  - Me 注册表单补充「保留互动与上传」说明
+- **结果**：游客注册后仍看到自己的赞/收藏/关注/作品；可用新密码登录同一账号。提交：`f4cd5bd`
+- **后续**：Inbox 通知可点进视频/主页；评论数卡片同步；ABR / 对象存储仍走实验分支。
+
 ---
 
-<!-- 新条目追加在上方「---」之前。 -->
+<!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->

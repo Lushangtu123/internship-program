@@ -265,18 +265,73 @@ export async function getUserBySession(
   return user ? toPublicUser(user) : null;
 }
 
+/**
+ * When a guest registers, keep the same user id so likes / saves / follows /
+ * uploads / comments / notifications stay attached. Refresh denormalized
+ * display fields that still show the old guest_* name.
+ */
+function syncIdentityDisplay(store: FeedStoreData, user: StoredUser) {
+  const handle = `@${user.username}`;
+  for (const video of store.videos) {
+    if (video.creator.id !== user.id) continue;
+    video.creator.handle = handle;
+    video.creator.name = user.username;
+    video.creator.avatar = user.avatar;
+    if (video.music?.artist) video.music.artist = user.username;
+  }
+  for (const list of Object.values(store.comments)) {
+    for (const comment of list) {
+      if (comment.userId !== user.id) continue;
+      comment.username = user.username;
+      comment.userAvatar = user.avatar;
+    }
+  }
+  for (const list of Object.values(store.notificationsByUser)) {
+    for (const item of list) {
+      if (item.actorId !== user.id) continue;
+      item.actorUsername = user.username;
+      item.actorAvatar = user.avatar;
+    }
+  }
+}
+
 export async function registerUser(
   username: string,
   password: string,
-  dataDir?: string
+  dataDir?: string,
+  /** Current guest user id — register upgrades this identity in place */
+  upgradeFromUserId?: string | null
 ): Promise<{ user: PublicUser; token: string } | { error: string; status: number }> {
   const name = username.trim();
   if (name.length < 3) return { error: 'Username must be at least 3 characters', status: 400 };
   if (password.length < 6) return { error: 'Password must be at least 6 characters', status: 400 };
 
   const store = await ensureStore(dataDir);
-  if (store.users.some((u) => u.username.toLowerCase() === name.toLowerCase() && !u.isGuest)) {
+  if (
+    store.users.some(
+      (u) =>
+        u.username.toLowerCase() === name.toLowerCase() &&
+        !u.isGuest &&
+        u.id !== upgradeFromUserId
+    )
+  ) {
     return { error: 'Username already taken', status: 409 };
+  }
+
+  const guest =
+    upgradeFromUserId != null
+      ? store.users.find((u) => u.id === upgradeFromUserId && u.isGuest)
+      : undefined;
+
+  if (guest) {
+    guest.username = name;
+    guest.passwordHash = hashPassword(password);
+    guest.isGuest = false;
+    syncIdentityDisplay(store, guest);
+    const token = newSessionToken();
+    store.sessions[token] = { userId: guest.id, createdAt: Date.now() };
+    await persist(store, dataDir);
+    return { user: toPublicUser(guest), token };
   }
 
   const user: StoredUser = {

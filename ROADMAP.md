@@ -92,6 +92,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - AuthBar identity chip links to `/creator/[me]`
 - Profile page hides Follow when viewing yourself
 
+## Step 14 — Guest register upgrades in place ✅
+
+- Register from a guest session keeps the same `user.id`
+- Likes / saves / follows / uploads / comments stay attached
+- Denormalized display names (creator handle, comment author) refresh
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
