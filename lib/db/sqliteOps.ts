@@ -53,8 +53,8 @@ function insertNotificationRow(db: SqliteDatabase, item: NotificationItem) {
   db.prepare(
     `INSERT INTO notifications (
       id, user_id, type, actor_id, actor_username, actor_avatar,
-      video_id, text, read, created_at, position
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+      video_id, conversation_id, text, read, created_at, position
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
   ).run(
     item.id,
     item.userId,
@@ -63,6 +63,7 @@ function insertNotificationRow(db: SqliteDatabase, item: NotificationItem) {
     item.actorUsername,
     item.actorAvatar,
     item.videoId ?? null,
+    item.conversationId ?? null,
     item.text ?? null,
     item.read ? 1 : 0,
     item.createdAt

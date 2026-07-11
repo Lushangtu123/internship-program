@@ -532,6 +532,17 @@ describe('feedStore identity + persistence', () => {
     );
     expect(sent.ok && sent.message.text).toBe('hello bob');
 
+    const bobNotes = await listNotifications(bob.user.id, 10, dataDir);
+    expect(bobNotes.unreadCount).toBeGreaterThanOrEqual(1);
+    expect(
+      bobNotes.items.some(
+        (n) =>
+          n.type === 'message' &&
+          n.conversationId === opened.conversation.id &&
+          n.text === 'hello bob'
+      )
+    ).toBe(true);
+
     const bobList = await listConversations(bob.user.id, dataDir);
     expect(bobList.unreadCount).toBe(1);
     expect(bobList.items[0]?.lastMessage?.text).toBe('hello bob');

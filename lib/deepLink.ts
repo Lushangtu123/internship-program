@@ -55,14 +55,21 @@ export function findVideoIndex(
 /**
  * Inbox row target:
  * - follow → creator profile
+ * - message → conversation thread
  * - comment → video + open comments (`c=1`)
  * - like → video
  */
 export function notificationTargetHref(item: {
   type: string;
   videoId?: string;
+  conversationId?: string;
   actorId: string;
 }): string | null {
+  if (item.type === 'message') {
+    return item.conversationId
+      ? `/inbox/c/${encodeURIComponent(item.conversationId)}`
+      : '/inbox?tab=messages';
+  }
   if (item.type === 'follow') {
     return item.actorId ? `/creator/${item.actorId}` : null;
   }

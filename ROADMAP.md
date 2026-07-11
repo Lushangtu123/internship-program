@@ -194,6 +194,11 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 - Conversation page shares BottomNav + Create sheet with the rest of the app
 - Creator **Message** failures show an inline error (not only console)
 
+## Step 33 — DM activity notifications ✅
+
+- Sending a DM writes an Activity notification for the peer (`type=message`)
+- Notification deep-links into `/inbox/c/{id}`; Activity copy shows a short preview
+
 ## Later ideas (not scheduled)
 
 - Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)
