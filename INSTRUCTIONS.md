@@ -4,19 +4,19 @@
 
 ### 1. 安装依赖
 
-\`\`\`bash
+```bash
 npm install
 # 或
 pnpm install
-\`\`\`
+```
 
 ### 2. 运行开发服务器
 
-\`\`\`bash
+```bash
 npm run dev
 # 或
 pnpm dev
-\`\`\`
+```
 
 访问 [http://localhost:3000](http://localhost:3000) 查看应用。
 
@@ -59,12 +59,12 @@ pnpm dev
 ## 测试
 
 ### 单元测试
-\`\`\`bash
+```bash
 npm run test
-\`\`\`
+```
 
 ### E2E测试
-\`\`\`bash
+```bash
 # 安装Playwright浏览器（首次运行）
 npx playwright install
 
@@ -73,17 +73,17 @@ npm run e2e
 
 # 带UI运行
 npm run e2e -- --headed
-\`\`\`
+```
 
 ---
 
 ## 构建和部署
 
 ### 本地构建
-\`\`\`bash
+```bash
 npm run build
 npm run start
-\`\`\`
+```
 
 ### 部署到Vercel
 1. 推送代码到GitHub
@@ -96,7 +96,7 @@ npm run start
 
 编辑 `public/mock/seed.json` 来修改视频和评论数据：
 
-\`\`\`json
+```json
 {
   "videos": [
     {
@@ -122,7 +122,7 @@ npm run start
     }
   ]
 }
-\`\`\`
+```
 
 ---
 
@@ -172,7 +172,7 @@ npm run start
 
 ## 项目结构说明
 
-\`\`\`
+```
 /app                # Next.js App Router
   /(feed)          # 信息流页面组
   /api             # API路由
@@ -197,5 +197,5 @@ npm run start
 /public            # 静态资源
 /__tests__         # 单元测试
 /e2e               # E2E测试
-\`\`\`
+```
 

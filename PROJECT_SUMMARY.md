@@ -54,7 +54,7 @@
 
 ## 📁 项目结构
 
-\`\`\`
+```
 internship-program/
 ├── app/                          # Next.js App Router
 │   ├── (feed)/                   # 信息流路由组
@@ -119,23 +119,23 @@ internship-program/
 ├── README_PROJECT.md            # 项目说明（中文）
 ├── INSTRUCTIONS.md              # 设置说明
 └── PROJECT_SUMMARY.md           # 本文件
-\`\`\`
+```
 
 ---
 
 ## 🚀 如何运行
 
 ### 1. 安装依赖
-\`\`\`bash
+```bash
 npm install
 # 或
 pnpm install
-\`\`\`
+```
 
 ### 2. 运行开发服务器
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 访问: http://localhost:3000
 
@@ -143,7 +143,7 @@ npm run dev
 访问: http://localhost:3000?debug=1
 
 ### 4. 运行测试
-\`\`\`bash
+```bash
 # 单元测试
 npm run test
 
@@ -152,7 +152,7 @@ npm run e2e
 
 # Lighthouse CI
 npm run lhci
-\`\`\`
+```
 
 ---
 
