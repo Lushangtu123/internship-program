@@ -152,7 +152,7 @@
   - 深链「落地」逻辑：若已有 sheet 打开（或 URL 带 `sheet=`），不再关 sheet / 不再当视频深链处理
   - 关闭 Upload/Inbox 时清掉 URL 上的 `sheet` 参数
   - e2e 覆盖 Me → Inbox 路径
-- **结果**：从 Me 进 Inbox 面板保持打开。提交：见本次 main
+- **结果**：从 Me 进 Inbox 面板保持打开。提交：`34aecf3`
 - **后续**：ABR / 对象存储等不确定项走实验分支。
 
 ---
