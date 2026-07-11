@@ -25,7 +25,7 @@ We improve toward a TikTok-like product **one step at a time**.
 
 ## Step 4 — HLS playback ✅
 
-- Uploads are transcoded to single-rendition VOD HLS (`public/uploads/hls/{id}/`)
+- Uploads are transcoded to multi-rendition VOD HLS (`public/uploads/hls/{id}/`, ABR experimental)
 - Progressive file kept as fallback artifact
 - Player uses native HLS (Safari) or `hls.js` (Chromium)
 - CDN-friendly cache headers on `/uploads/hls/*`
@@ -169,15 +169,14 @@ We improve toward a TikTok-like product **one step at a time**.
 
 ## Later ideas (not scheduled)
 
-- Multi-bitrate ABR ladders
-- Real object storage + CDN origin
 - Messaging / inbox
 - Normalized SQL schema (beyond snapshot blob)
 
-## Experimental (branch) — Personalized For You + async HLS + SQLite + object storage
+## Experimental (branch) — productization stack
 
 - Affinity boosts on For You from follows / liked creators / saves / plays
 - Upload returns progressive playback immediately (`status=processing`); HLS packages in background
 - Persist feed state in SQLite WAL (`data/store.sqlite`) instead of rewriting `store.json`
 - Object storage abstraction: local `public/uploads` (default) or S3-compatible via `STORAGE_DRIVER=s3`
+- Multi-bitrate ABR HLS ladder (360p / 480p / 720p) with master playlist; hls.js caps level to player size
 - Branch: `cursor/personalize-async-upload-8729`

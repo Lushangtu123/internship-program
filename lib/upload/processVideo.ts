@@ -1,15 +1,18 @@
 import { promises as fs } from 'fs';
+import { existsSync } from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { randomBytes } from 'crypto';
 import { getObjectStore, type ObjectStore } from '@/lib/storage';
 import { guessContentType } from '@/lib/storage/types';
+import { ABR_LADDER, buildMasterPlaylist } from '@/lib/upload/abrLadder';
 
 const execFileAsync = promisify(execFile);
 
 const ALLOWED_EXT = new Set(['.webm', '.mp4', '.mov']);
 const MAX_BYTES = 40 * 1024 * 1024; // 40MB local demo limit
+const HLS_TIMEOUT_MS = 420_000;
 
 export function getUploadDirs(rootDir = process.cwd()) {
   const UPLOAD_ROOT = path.join(rootDir, 'public', 'uploads');
@@ -70,20 +73,59 @@ async function extractPoster(videoPath: string, posterPath: string) {
   ]);
 }
 
-/** Single-rendition VOD HLS package; publishes via ObjectStore. */
-export async function transcodeToHls(
-  inputPath: string,
-  id: string,
-  rootDir = process.cwd(),
-  store: ObjectStore = getObjectStore(rootDir)
-): Promise<string> {
-  const { HLS_DIR } = getUploadDirs(rootDir);
-  const outDir = path.join(HLS_DIR, id);
-  await fs.mkdir(outDir, { recursive: true });
+async function encodeVariant(input: {
+  inputPath: string;
+  outDir: string;
+  height: number;
+  videoBitrate: string;
+  withAudio: boolean;
+}) {
+  await fs.mkdir(input.outDir, { recursive: true });
+  const playlist = path.join(input.outDir, 'index.m3u8');
+  const segmentPattern = path.join(input.outDir, 'seg_%03d.ts');
+  const args = [
+    '-y',
+    '-i',
+    input.inputPath,
+    '-vf',
+    `scale=-2:${input.height}`,
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-b:v',
+    input.videoBitrate,
+    '-maxrate',
+    input.videoBitrate,
+    '-bufsize',
+    input.videoBitrate,
+    '-pix_fmt',
+    'yuv420p',
+    ...(input.withAudio
+      ? (['-c:a', 'aac', '-b:a', '96k', '-ac', '2'] as string[])
+      : (['-an'] as string[])),
+    '-f',
+    'hls',
+    '-hls_time',
+    '2',
+    '-hls_playlist_type',
+    'vod',
+    '-hls_segment_filename',
+    segmentPattern,
+    playlist,
+  ];
+  await execFileAsync('ffmpeg', args, { timeout: HLS_TIMEOUT_MS });
+  await fs.access(playlist);
+}
 
+/** Single-rendition fallback (legacy path). */
+async function transcodeSingleRendition(
+  inputPath: string,
+  outDir: string
+): Promise<void> {
+  await fs.mkdir(outDir, { recursive: true });
   const playlist = path.join(outDir, 'index.m3u8');
   const segmentPattern = path.join(outDir, 'seg_%03d.ts');
-
   const baseArgs = [
     '-y',
     '-i',
@@ -108,22 +150,77 @@ export async function transcodeToHls(
     segmentPattern,
     playlist,
   ];
-
   try {
     await execFileAsync(
       'ffmpeg',
       [...baseArgs, '-c:a', 'aac', '-b:a', '128k', '-ac', '2', ...hlsArgs],
-      { timeout: 180000 }
+      { timeout: HLS_TIMEOUT_MS }
     );
   } catch {
     await execFileAsync('ffmpeg', [...baseArgs, '-an', ...hlsArgs], {
-      timeout: 180000,
+      timeout: HLS_TIMEOUT_MS,
     });
   }
-
   await fs.access(playlist);
+}
+
+/**
+ * Multi-bitrate HLS package (360p / 480p / 720p) + master.m3u8.
+ * Falls back to a single rendition if the ladder encode fails.
+ */
+export async function transcodeToHls(
+  inputPath: string,
+  id: string,
+  rootDir = process.cwd(),
+  store: ObjectStore = getObjectStore(rootDir)
+): Promise<string> {
+  const { HLS_DIR } = getUploadDirs(rootDir);
+  const outDir = path.join(HLS_DIR, id);
+  await fs.mkdir(outDir, { recursive: true });
+
+  try {
+    let hasAudio = true;
+    for (const rung of ABR_LADDER) {
+      const variantDir = path.join(outDir, rung.name);
+      try {
+        await encodeVariant({
+          inputPath,
+          outDir: variantDir,
+          height: rung.height,
+          videoBitrate: rung.videoBitrate,
+          withAudio: hasAudio,
+        });
+      } catch (error) {
+        if (!hasAudio) throw error;
+        // Source may lack an audio stream — retry the whole ladder silently.
+        hasAudio = false;
+        await encodeVariant({
+          inputPath,
+          outDir: variantDir,
+          height: rung.height,
+          videoBitrate: rung.videoBitrate,
+          withAudio: false,
+        });
+      }
+    }
+
+    const master = buildMasterPlaylist(ABR_LADDER, { hasAudio });
+    const masterPath = path.join(outDir, 'master.m3u8');
+    await fs.writeFile(masterPath, master, 'utf-8');
+    // Keep index.m3u8 as an alias for older clients / tests.
+    await fs.writeFile(path.join(outDir, 'index.m3u8'), master, 'utf-8');
+  } catch (error) {
+    console.error('ABR ladder failed, falling back to single rendition:', error);
+    await fs.rm(outDir, { recursive: true, force: true });
+    await fs.mkdir(outDir, { recursive: true });
+    await transcodeSingleRendition(inputPath, outDir);
+  }
+
   await store.putDirectory(`hls/${id}`, outDir);
-  return store.publicUrl(`hls/${id}/index.m3u8`);
+  const masterKey = existsSync(path.join(outDir, 'master.m3u8'))
+    ? `hls/${id}/master.m3u8`
+    : `hls/${id}/index.m3u8`;
+  return store.publicUrl(masterKey);
 }
 
 export async function saveUploadedVideo(
