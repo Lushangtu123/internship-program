@@ -10,6 +10,10 @@ import {
   type AppNotification,
 } from '@/lib/api';
 import { notificationTargetHref } from '@/lib/deepLink';
+import {
+  countActivityUnread,
+  unreadActivityNotificationIds,
+} from '@/lib/inboxUnread';
 
 function formatRelative(ts: number) {
   const delta = Math.max(0, Date.now() - ts);
@@ -60,17 +64,19 @@ export function InboxPanel({
     refetchInterval: active ? 10_000 : 30_000,
   });
 
-  const unread = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
+  const activityUnreadIds = unreadActivityNotificationIds(items);
+  const activityUnreadKey = activityUnreadIds.join(',');
   const isGuest = me?.isGuest ?? true;
   const meHref = me ? `/creator/${me.id}` : '/';
 
   useEffect(() => {
-    if (!active || unread === 0) return;
+    if (!active || activityUnreadIds.length === 0) return;
     let cancelled = false;
     (async () => {
       try {
-        await markNotificationsRead();
+        // Leave type=message rows unread until the DM thread is opened.
+        await markNotificationsRead(activityUnreadIds);
         if (!cancelled) {
           await queryClient.invalidateQueries({ queryKey: ['notifications'] });
         }
@@ -81,7 +87,9 @@ export function InboxPanel({
     return () => {
       cancelled = true;
     };
-  }, [active, unread, queryClient]);
+    // activityUnreadKey tracks id set; avoid depending on a fresh array each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, activityUnreadKey, queryClient]);
 
   return (
     <div className={className}>
@@ -152,12 +160,15 @@ export function InboxPanel({
   );
 }
 
-/** Unread count for the bottom-nav badge */
+/**
+ * Unread likes / comments / follows (excludes DM Activity rows).
+ * Used for Activity tab dots, smart Inbox landing, and bottom-nav badge math.
+ */
 export function useNotificationUnread() {
   const { data } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => fetchNotifications(30),
     refetchInterval: 30_000,
   });
-  return data?.unreadCount ?? 0;
+  return countActivityUnread(data?.items ?? []);
 }

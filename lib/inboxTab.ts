@@ -2,8 +2,9 @@
 export type InboxEntryTab = 'activity' | 'messages';
 
 /**
- * Prefer Messages when there are unread DMs and zero activity notifications.
- * Explicit `?tab=` still wins at the page layer.
+ * Prefer Messages when there are unread DMs and zero *activity* notifications
+ * (likes / comments / follows). DM Activity rows (`type=message`) are excluded
+ * from the activity count by callers so Step 31 landing still works.
  */
 export function preferInboxTab(
   unreadNotifications: number,
