@@ -15,7 +15,7 @@ import { fetchVideos } from '@/lib/api';
 import { useVideoPrefetch } from '@/lib/usePrefetch';
 import { qoeLogger } from '@/lib/qoe';
 import { findVideoIndex } from '@/lib/deepLink';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function FeedPageContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -24,6 +24,7 @@ function FeedPageContent() {
   const [sheet, setSheet] = useState<'upload' | 'inbox' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef<string | null>(null);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get('v');
 
@@ -47,6 +48,13 @@ function FeedPageContent() {
       setSheet(sheetParam);
     }
   }, [searchParams]);
+
+  // Video deep links (share / inbox / post-upload) land on For You
+  useEffect(() => {
+    if (!deepLinkId) return;
+    setFeedMode('foryou');
+    setSheet(null);
+  }, [deepLinkId]);
 
   // Fetch videos with infinite scroll
   const {
@@ -273,7 +281,16 @@ function FeedPageContent() {
           setSheet((s) => (s === 'inbox' ? null : 'inbox'))
         }
       />
-      <UploadSheet open={sheet === 'upload'} onClose={() => setSheet(null)} />
+      <UploadSheet
+        open={sheet === 'upload'}
+        onClose={() => setSheet(null)}
+        onUploaded={(videoId) => {
+          setSheet(null);
+          setFeedMode('foryou');
+          deepLinkHandledRef.current = null;
+          router.replace(`/?v=${encodeURIComponent(videoId)}`);
+        }}
+      />
       <NotificationSheet
         open={sheet === 'inbox'}
         onClose={() => setSheet(null)}

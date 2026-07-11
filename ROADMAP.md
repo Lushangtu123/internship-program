@@ -92,6 +92,11 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - AuthBar identity chip links to `/creator/[me]`
 - Profile page hides Follow when viewing yourself
 
+## Step 17 — Jump to video after upload ✅
+
+- Successful publish closes the upload sheet
+- Navigates to `/?v={newId}` on For You so the new clip plays immediately
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
