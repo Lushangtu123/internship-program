@@ -543,6 +543,21 @@ describe('feedStore identity + persistence', () => {
       )
     ).toBe(true);
 
+    await sendMessage(
+      opened.conversation.id,
+      alice.user.id,
+      'second ping',
+      dataDir
+    );
+    const bobNotes2 = await listNotifications(bob.user.id, 20, dataDir);
+    const messageNotes = bobNotes2.items.filter(
+      (n) =>
+        n.type === 'message' && n.conversationId === opened.conversation.id
+    );
+    expect(messageNotes).toHaveLength(1);
+    expect(messageNotes[0]?.text).toBe('second ping');
+    expect(messageNotes[0]?.read).toBe(false);
+
     const bobList = await listConversations(bob.user.id, dataDir);
     expect(bobList.unreadCount).toBe(1);
     expect(bobList.items[0]?.lastMessage?.text).toBe('hello bob');

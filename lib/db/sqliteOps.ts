@@ -197,6 +197,17 @@ export function opInsertNotification(
   });
 }
 
+/** Delete + reinsert at front (coalesced unread DM preview refresh). */
+export function opRefreshNotification(
+  dataDir: string,
+  item: NotificationItem
+) {
+  withTxn(dataDir, (db) => {
+    db.prepare(`DELETE FROM notifications WHERE id = ?`).run(item.id);
+    insertNotificationRow(db, item);
+  });
+}
+
 export function opToggleLike(
   dataDir: string,
   userId: string,

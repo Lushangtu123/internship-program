@@ -209,6 +209,11 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 - When a card leaves `processing` for `ready`, briefly show a green **Ready** badge
 - Failed transitions keep a failed cue; Processing… still shows while packing
 
+## Step 36 — Coalesce unread DM Activity notifications ✅
+
+- Multiple unread DMs in the same thread refresh one Activity row (latest preview)
+- Avoids flooding Inbox Activity while the conversation is still unread
+
 ## Later ideas (not scheduled)
 
 - Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)

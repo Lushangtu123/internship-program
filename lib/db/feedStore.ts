@@ -35,6 +35,7 @@ import {
   opRecordShare,
   opRecordSignal,
   opRegisterUpgrade,
+  opRefreshNotification,
   opToggleFollow,
   opToggleLike,
   opToggleSave,
@@ -189,6 +190,55 @@ function pushNotification(
   const existing = store.notificationsByUser[recipientId] ?? [];
   store.notificationsByUser[recipientId] = [item, ...existing].slice(0, 100);
   return item;
+}
+
+/**
+ * For DMs: reuse one unread Activity row per conversation (update preview + bump to top).
+ * Returns coalesced=true when an existing unread row was refreshed.
+ */
+function pushOrCoalesceMessageNotification(
+  store: FeedStoreData,
+  recipientId: string,
+  input: {
+    actorId: string;
+    actorUsername: string;
+    actorAvatar: string;
+    conversationId: string;
+    text: string;
+  }
+): { item: NotificationItem; coalesced: boolean } | null {
+  if (!recipientId || recipientId === input.actorId) return null;
+  const existing = store.notificationsByUser[recipientId] ?? [];
+  const idx = existing.findIndex(
+    (n) =>
+      n.type === 'message' &&
+      n.conversationId === input.conversationId &&
+      !n.read
+  );
+
+  if (idx >= 0) {
+    const updated: NotificationItem = {
+      ...existing[idx],
+      actorId: input.actorId,
+      actorUsername: input.actorUsername,
+      actorAvatar: input.actorAvatar,
+      text: input.text,
+      read: false,
+      createdAt: Date.now(),
+    };
+    const next = [
+      updated,
+      ...existing.filter((_, i) => i !== idx),
+    ].slice(0, 100);
+    store.notificationsByUser[recipientId] = next;
+    return { item: updated, coalesced: true };
+  }
+
+  const item = pushNotification(store, recipientId, {
+    type: 'message',
+    ...input,
+  });
+  return item ? { item, coalesced: false } : null;
 }
 
 function actorFromStore(store: FeedStoreData, userId: string) {
@@ -1352,8 +1402,7 @@ export async function sendMessage(
   conv.updatedAt = now;
   conv.lastReadAtByUser[userId] = now;
   const peerId = peerIdOf(conv, userId);
-  const notification = pushNotification(store, peerId, {
-    type: 'message',
+  const notified = pushOrCoalesceMessageNotification(store, peerId, {
     actorId: me.id,
     actorUsername: me.username,
     actorAvatar: me.avatar,
@@ -1364,7 +1413,10 @@ export async function sendMessage(
   const keptIds = conv.messages.map((m) => m.id);
   await persistIncremental(store, dir, () => {
     opAppendMessage(dir, message, userId, now, keptIds);
-    if (notification) opInsertNotification(dir, notification);
+    if (notified) {
+      if (notified.coalesced) opRefreshNotification(dir, notified.item);
+      else opInsertNotification(dir, notified.item);
+    }
   });
   publishDirectMessage(message, [conv.userAId, conv.userBId]);
   return { ok: true, message };
