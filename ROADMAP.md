@@ -169,7 +169,7 @@ We improve toward a TikTok-like product **one step at a time**.
 
 ## Later ideas (not scheduled)
 
-- Multi-instance DM fan-out (Redis pub/sub)
+- Horizontal SQLite / shared DB for multi-instance store (beyond single-node WAL)
 
 ## Experimental (branch) — productization stack
 
@@ -181,4 +181,5 @@ We improve toward a TikTok-like product **one step at a time**.
 - **Messaging MVP**: Inbox Activity | Messages; 1:1 DMs; creator Message button; unread badge combines notifications + DMs
 - **Incremental SQL ops** for engagement, DMs, auth, and video CRUD (full snapshot only for seed/migration)
 - **DM SSE realtime** (in-process bus; polling fallback; Live indicator)
+- **Optional Redis DM fan-out** (`REDIS_URL`) for multi-instance SSE
 - Branch: `cursor/personalize-async-upload-8729`

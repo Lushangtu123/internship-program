@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   conversationBusListenerCount,
+  conversationBusMode,
   publishDirectMessage,
   resetConversationBus,
   subscribeChannel,
@@ -9,6 +10,12 @@ import {
 describe('conversationBus', () => {
   beforeEach(() => {
     resetConversationBus();
+    delete process.env.REDIS_URL;
+  });
+
+  afterEach(() => {
+    resetConversationBus();
+    delete process.env.REDIS_URL;
   });
 
   it('fans out messages to conversation and user channels', () => {
@@ -43,5 +50,43 @@ describe('conversationBus', () => {
     unsubB();
     unsubOther();
     expect(conversationBusListenerCount()).toBe(0);
+  });
+
+  it('reports memory mode when REDIS_URL is unset', () => {
+    expect(conversationBusMode()).toBe('memory');
+  });
+
+  it('reports redis mode when REDIS_URL is set', () => {
+    process.env.REDIS_URL = 'redis://127.0.0.1:6379';
+    resetConversationBus();
+    expect(conversationBusMode()).toBe('redis');
+  });
+});
+
+describe('redisBridge without server', () => {
+  afterEach(async () => {
+    delete process.env.REDIS_URL;
+    const bridge = await import('@/lib/realtime/redisBridge');
+    await bridge.closeRedisDm();
+  });
+
+  it('publishRedisDm returns false when REDIS_URL unset', async () => {
+    delete process.env.REDIS_URL;
+    const bridge = await import('@/lib/realtime/redisBridge');
+    await bridge.closeRedisDm();
+    const published = await bridge.publishRedisDm({
+      participantIds: ['u_a'],
+      event: {
+        type: 'message',
+        message: {
+          id: 'm',
+          conversationId: 'c',
+          senderId: 'u_a',
+          text: 'x',
+          createdAt: 1,
+        },
+      },
+    });
+    expect(published).toBe(false);
   });
 });

@@ -302,7 +302,17 @@
   - `opInsertVideo` / `opUpdateVideoFields` / `opDeleteVideo`（级联清 likes/saves/comments/signals/plays/notifications）
   - `feedStore` 可变路径全部 `persistIncremental`；全量快照仅保留 seed/迁移
 - **结果**：提交：`12c9ef1`；`npm test` 71 通过。
-- **后续**：多实例 DM 需 Redis；确认后可合 main。
+- **后续**：多实例 DM Redis；确认后可合 main。
+
+### 2026-07-11 — 实验：多实例 DM Redis pub/sub
+
+- **问题**：SSE 总线仅进程内有效，多 Node 实例时对端收不到实时私信。
+- **方法**（同实验分支）：
+  - `REDIS_URL` 可选；`redisBridge` 订阅 `sv:dm`，带 `origin` 去重避免回声
+  - `conversationBus` 仍先本地 fan-out，再异步 publish；无 Redis 时行为不变
+  - `.env.example` 补充说明
+- **结果**：待提交后回填。
+- **后续**：确认后可合 main。
 
 ---
 
