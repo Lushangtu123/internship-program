@@ -211,7 +211,7 @@
   - 个性化：`UserAffinity`（关注/点赞创作者/收藏/已赞/已播）叠在全局分上；`playsByUser` 由 engagement 写入
   - 异步上传：`acceptUploadedVideo` 先落盘 progressive + poster → `status=processing` 立刻返回；后台 `enqueueHlsTranscode` 完成后续改 `src` 为 m3u8 / `ready`
   - `GET /api/videos/[id]` 可查 packaging 状态
-- **结果**：见本分支 PR。提交：见本条合入 commit
+- **结果**：见本分支 PR。提交：`e36376a`
 - **后续**：对象存储 / 真数据库 / ABR 仍实验；确认后可合 main。
 
 ---
