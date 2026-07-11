@@ -376,6 +376,15 @@
   - `packagingStatusToast(prev, next)`：processing→ready 显示 Ready（约 2.2s）
   - VideoCard 左上角角标；失败仍提示
 - **结果**：提交：`6dd3896`；`npm test` 83 通过。
+- **后续**：同会话未读私信通知合并。
+
+### 2026-07-11 — Step 36：同会话未读私信通知合并
+
+- **问题**：连续发多条私信会在 Activity 堆很多 message 行。
+- **方法**：
+  - `pushOrCoalesceMessageNotification`：同 `conversationId` 且未读则更新预览并置顶
+  - SQL：`opRefreshNotification`（删旧插新到 position 0）
+- **结果**：提交：`b014e61`；`npm test` 83 通过。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---
