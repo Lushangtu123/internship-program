@@ -65,7 +65,7 @@
 - **方法**：
   - 抽出 `lib/shareVideo.ts`：优先 Web Share，失败/不支持则剪贴板；用户取消（AbortError）不提示
   - `VideoCard` 底部短暂 toast：`Shared` / `Link copied` / `Couldn’t share`
-- **结果**：分享操作有明确结果反馈。提交：见本分支
+- **结果**：分享操作有明确结果反馈。提交：`eeb0941`
 - **后续**：评论类通知可自动打开评论抽屉；深链找不到视频时提示。
 
 ---
