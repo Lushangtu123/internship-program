@@ -199,6 +199,11 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 - Sending a DM writes an Activity notification for the peer (`type=message`)
 - Notification deep-links into `/inbox/c/{id}`; Activity copy shows a short preview
 
+## Step 34 — Clear message notifications when thread is read ✅
+
+- `markConversationRead` also marks matching `message` Activity rows as read
+- Opening a thread refreshes the notifications query so the badge/dot updates
+
 ## Later ideas (not scheduled)
 
 - Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)

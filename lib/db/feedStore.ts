@@ -1382,12 +1382,38 @@ export async function markConversationRead(
   }
   const last = conv.messages[conv.messages.length - 1];
   const stamp = last?.createdAt ?? Date.now();
-  if ((conv.lastReadAtByUser[userId] ?? 0) < stamp) {
+  const needsConvRead = (conv.lastReadAtByUser[userId] ?? 0) < stamp;
+  if (needsConvRead) {
     conv.lastReadAtByUser[userId] = stamp;
+  }
+
+  const notes = store.notificationsByUser[userId] ?? [];
+  const messageNoteIds: string[] = [];
+  for (const item of notes) {
+    if (
+      item.type === 'message' &&
+      item.conversationId === conversationId &&
+      !item.read
+    ) {
+      item.read = true;
+      messageNoteIds.push(item.id);
+    }
+  }
+  if (messageNoteIds.length > 0) {
+    store.notificationsByUser[userId] = notes;
+  }
+
+  if (needsConvRead || messageNoteIds.length > 0) {
     const dir = dataDir ?? DEFAULT_DATA_DIR;
     await persistIncremental(store, dir, () => {
-      opMarkConversationRead(dir, conversationId, userId, stamp);
+      if (needsConvRead) {
+        opMarkConversationRead(dir, conversationId, userId, stamp);
+      }
+      if (messageNoteIds.length > 0) {
+        opMarkNotificationsRead(dir, userId, messageNoteIds);
+      }
     });
   }
+
   return { ok: true, unreadCount: unreadInConversation(conv, userId) };
 }
