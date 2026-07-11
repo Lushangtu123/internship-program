@@ -261,7 +261,7 @@
   - API：`GET/POST /api/conversations`、`GET/POST .../messages`、`POST ... action:read`
   - UI：Inbox **Activity | Messages**；`/inbox/c/[id]` 会话页；主页 **Message** 按钮；底栏未读 = 通知 + 私信
   - 规则：仅注册用户可发；游客引导登录；每会话最多 200 条；轮询刷新
-- **结果**：提交：`ddd51c7`；`npm test` 66 通过。
+- **结果**：提交：`cc0e69e`；`npm test` 66 通过。
 - **后续**：确认后可合 main；WebSocket / 按操作 SQL 写入仍可选。
 
 ---
