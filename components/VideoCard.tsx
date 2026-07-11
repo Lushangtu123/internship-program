@@ -7,6 +7,7 @@ import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { Video } from '@/types/video';
 import { ActionsBar } from './ActionsBar';
 import { CaptionBadge } from './CaptionBadge';
+import { MuteGestureTip } from './MuteGestureTip';
 import { useAutoplay } from '@/lib/useAutoplay';
 import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
@@ -400,6 +401,9 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
           </div>
         </div>
       </div>
+
+      {/* First-visit coach: tap to unmute (autoplay starts muted) */}
+      <MuteGestureTip visible={isActive} />
 
       {/* Mute — kept subtle, above the action column */}
       <button

@@ -119,6 +119,11 @@ We improve toward a TikTok-like product **one step at a time**.
 - Share uses Web Share when available, else clipboard
 - Transient toast: Shared / Link copied / Couldn’t share (cancel stays silent)
 
+## Step 19 — First-visit mute coach ✅
+
+- One-shot 「Tap for sound」 tip on the active muted card
+- Persisted via `localStorage` (`sv_mute_tip_seen`)
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
