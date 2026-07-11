@@ -637,6 +637,20 @@ export async function toggleLike(
   return { ok: true, liked: !currentlyLiked, likes: video.stats.likes };
 }
 
+export async function recordShare(
+  videoId: string,
+  dataDir?: string
+): Promise<{ ok: true; shares: number } | { ok: false; error: string }> {
+  const store = await ensureStore(dataDir);
+  const video = store.videos.find((v) => v.id === videoId);
+  if (!video) {
+    return { ok: false, error: 'Video not found' };
+  }
+  video.stats.shares = (video.stats.shares ?? 0) + 1;
+  await persist(store, dataDir);
+  return { ok: true, shares: video.stats.shares };
+}
+
 export async function toggleSave(
   videoId: string,
   userId: string,

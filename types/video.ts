@@ -65,6 +65,11 @@ export interface LikeResponse {
   likes?: number;
 }
 
+export interface ShareResponse {
+  ok: boolean;
+  shares: number;
+}
+
 export interface SaveResponse {
   ok: boolean;
   saved: boolean;

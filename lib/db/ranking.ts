@@ -15,10 +15,12 @@ export function computeVideoScore(
   const completes = signals?.completes ?? 0;
   const likes = video.stats.likes ?? 0;
   const comments = video.stats.comments ?? 0;
+  const shares = video.stats.shares ?? 0;
 
   const engagement =
     Math.log1p(likes) * 3 +
     Math.log1p(comments) * 2 +
+    Math.log1p(shares) * 1.5 +
     Math.log1p(plays) * 1 +
     Math.log1p(completes) * 4;
 

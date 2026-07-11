@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRef, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Subtitles } from 'lucide-react';
 import { Video } from '@/types/video';
 import { ActionsBar } from './ActionsBar';
 import { CaptionBadge } from './CaptionBadge';
@@ -11,7 +11,7 @@ import { MuteGestureTip } from './MuteGestureTip';
 import { useAutoplay } from '@/lib/useAutoplay';
 import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
-import { fetchMe, likeVideo, saveVideo, toggleFollowCreator } from '@/lib/api';import { trackComplete, trackPlay } from '@/lib/trackEngagement';
+import { fetchMe, likeVideo, saveVideo, shareVideo, toggleFollowCreator } from '@/lib/api';import { trackComplete, trackPlay } from '@/lib/trackEngagement';
 import { buildVideoDeepLink } from '@/lib/deepLink';
 import { shareOutcomeMessage, shareVideoLink } from '@/lib/shareVideo';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,7 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const manuallyPausedRef = useRef(false); // Use ref for immediate access
   const [localLiked, setLocalLiked] = useState(video.liked || false);
   const [localLikes, setLocalLikes] = useState(video.stats.likes);
+  const [localShares, setLocalShares] = useState(video.stats.shares);
   const [localSaved, setLocalSaved] = useState(video.saved || false);
   const [localFollowing, setLocalFollowing] = useState(video.isFollowing || false);
   const [followPending, setFollowPending] = useState(false);
@@ -43,7 +44,7 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const shareToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { isMuted, showCaptions, setActiveVideoId } = useUIStore();
+  const { isMuted, showCaptions, setActiveVideoId, toggleCaptions } = useUIStore();
 
   useHlsPlayback(videoRef, video.src);
 
@@ -56,9 +57,10 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   useEffect(() => {
     setLocalLiked(video.liked || false);
     setLocalLikes(video.stats.likes);
+    setLocalShares(video.stats.shares);
     setLocalSaved(video.saved || false);
     setLocalFollowing(video.isFollowing || false);
-  }, [video.id, video.liked, video.stats.likes, video.saved, video.isFollowing]);
+  }, [video.id, video.liked, video.stats.likes, video.stats.shares, video.saved, video.isFollowing]);
 
   // Looping videos rarely fire `ended`; treat 80% watch as a complete.
   useEffect(() => {
@@ -243,6 +245,14 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
       text: `Check out this video by ${video.creator.handle}`,
     });
     const message = shareOutcomeMessage(outcome);
+    if (outcome === 'shared' || outcome === 'copied') {
+      try {
+        const result = await shareVideo(video.id);
+        setLocalShares(result.shares);
+      } catch (err) {
+        console.error(err);
+      }
+    }
     if (!message) return;
     if (shareToastTimer.current) clearTimeout(shareToastTimer.current);
     setShareMessage(message);
@@ -252,6 +262,11 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const toggleMute = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     useUIStore.getState().toggleMute();
+  };
+
+  const toggleCaptionsBtn = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    toggleCaptions();
   };
 
   return (
@@ -390,7 +405,7 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
           {/* Right: Actions Bar */}
           <div className="flex-shrink-0 mb-2">
             <ActionsBar
-              stats={{ ...video.stats, likes: localLikes }}
+              stats={{ ...video.stats, likes: localLikes, shares: localShares }}
               liked={localLiked}
               saved={localSaved}
               onLike={handleLike}
@@ -405,18 +420,36 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
       {/* First-visit coach: tap to unmute (autoplay starts muted) */}
       <MuteGestureTip visible={isActive} />
 
-      {/* Mute — kept subtle, above the action column */}
-      <button
-        onClick={(e) => toggleMute(e)}
-        className="absolute bottom-32 right-4 p-2.5 rounded-full bg-black/35 backdrop-blur-sm hover:bg-black/50 z-20"
-        aria-label={isMuted ? 'Unmute' : 'Mute'}
-      >
-        {isMuted ? (
-          <VolumeX className="w-4 h-4 text-white/90" />
-        ) : (
-          <Volume2 className="w-4 h-4 text-white/90" />
+      {/* Mute + captions — above the action column */}
+      <div className="absolute bottom-32 right-4 z-20 flex flex-col gap-2">
+        {video.captionsVtt && (
+          <button
+            type="button"
+            onClick={toggleCaptionsBtn}
+            className={`rounded-full p-2.5 backdrop-blur-sm ${
+              showCaptions
+                ? 'bg-white/90 text-black'
+                : 'bg-black/35 text-white/90 hover:bg-black/50'
+            }`}
+            aria-label={showCaptions ? 'Hide captions' : 'Show captions'}
+            aria-pressed={showCaptions}
+          >
+            <Subtitles className="h-4 w-4" />
+          </button>
         )}
-      </button>
+        <button
+          type="button"
+          onClick={(e) => toggleMute(e)}
+          className="rounded-full bg-black/35 p-2.5 backdrop-blur-sm hover:bg-black/50"
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted ? (
+            <VolumeX className="h-4 w-4 text-white/90" />
+          ) : (
+            <Volume2 className="h-4 w-4 text-white/90" />
+          )}
+        </button>
+      </div>
 
       {shareMessage && (
         <div

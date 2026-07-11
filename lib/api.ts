@@ -5,6 +5,7 @@ import {
   CommentsResponse,
   LikeResponse,
   SaveResponse,
+  ShareResponse,
 } from '@/types/video';
 
 const API_BASE = '/api';
@@ -143,6 +144,14 @@ export async function saveVideo(videoId: string): Promise<SaveResponse> {
     method: 'POST',
   });
   if (!response.ok) throw new Error('Failed to save video');
+  return response.json();
+}
+
+export async function shareVideo(videoId: string): Promise<ShareResponse> {
+  const response = await apiFetch(`${API_BASE}/videos/${videoId}/share`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('Failed to record share');
   return response.json();
 }
 

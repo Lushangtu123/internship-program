@@ -34,15 +34,17 @@ export function CommentsDrawer({
 }: CommentsDrawerProps) {
   const queryClient = useQueryClient();
   const [comments, setComments] = useState<Comment[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && videoId) {
-      loadComments();
+      void loadComments();
       setReplyTo(null);
       setNewComment('');
     }
@@ -56,14 +58,30 @@ export function CommentsDrawer({
 
   const loadComments = async () => {
     setLoading(true);
+    setNextCursor(null);
     try {
       const response = await fetchComments(videoId);
       setComments(response.items);
+      setNextCursor(response.nextCursor);
       setVideoCommentCount(queryClient, videoId, commentCount(response.items));
     } catch (error) {
       console.error('Failed to load comments:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const response = await fetchComments(videoId, nextCursor);
+      setComments((prev) => [...prev, ...response.items]);
+      setNextCursor(response.nextCursor);
+    } catch (error) {
+      console.error('Failed to load more comments:', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -252,6 +270,18 @@ export function CommentsDrawer({
                   )}
                 </div>
               ))}
+              {nextCursor && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => void loadMore()}
+                    disabled={loadingMore}
+                    className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/15 disabled:opacity-60"
+                  >
+                    {loadingMore ? 'Loading…' : 'Load more'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </ScrollArea>

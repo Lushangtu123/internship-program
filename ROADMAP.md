@@ -140,6 +140,23 @@ We improve toward a TikTok-like product **one step at a time**.
 - `?feed=following` stays in sync; switching to Following clears `v`/`c`
 - Bottom nav Home / Following share the same mode switcher
 
+## Step 23 — On-card captions toggle ✅
+
+- CC / Subtitles control next to mute when `captionsVtt` exists
+
+## Step 24 — Comments pagination ✅
+
+- Comments drawer loads more via `nextCursor`
+
+## Step 25 — Share count persistence ✅
+
+- Successful share/copy calls `POST /api/videos/[id]/share`
+- Ranking includes share signal
+
+## Step 26 — Upload progress feedback ✅
+
+- XHR upload % progress, then “Processing…” while server transcodes
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

@@ -14,6 +14,7 @@ import {
   loginUser,
   markNotificationsRead,
   recordSignal,
+  recordShare,
   registerUser,
   resetStoreCache,
   toggleFollow,
@@ -61,6 +62,16 @@ describe('feedStore identity + persistence', () => {
 
     const raw = await readFile(path.join(dataDir, 'store.json'), 'utf-8');
     expect(raw).toContain(a.user.id);
+  });
+
+  it('increments share count on a video', async () => {
+    const before = await listVideos(null, 50, null, dataDir);
+    const base = before.items.find((v) => v.id === 'v_001')?.stats.shares ?? 0;
+    const shared = await recordShare('v_001', dataDir);
+    expect(shared.ok && shared.shares).toBe(base + 1);
+    resetStoreCache();
+    const after = await listVideos(null, 50, null, dataDir);
+    expect(after.items.find((v) => v.id === 'v_001')?.stats.shares).toBe(base + 1);
   });
 
   it('attaches comment author from the acting user', async () => {
