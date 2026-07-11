@@ -30,7 +30,15 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Player uses native HLS (Safari) or `hls.js` (Chromium)
 - CDN-friendly cache headers on `/uploads/hls/*`
 
-## Step 5 — Ranking / “For You” signals (next)
+## Step 5 — Ranking / “For You” signals ✅
 
-- Record play / like / complete events
-- Simple ranking for the feed (freshness + engagement)
+- Play + complete signals via `POST /api/engagement`
+- Score = engagement (`likes/comments/plays/completes`) + freshness
+- Feed list is ranked by score (not raw insert order)
+
+## Later ideas (not scheduled)
+
+- Multi-bitrate ABR ladders
+- Follow graph / following feed
+- Real object storage + CDN origin
+- Creator profiles and notifications

@@ -9,6 +9,7 @@ import { useAutoplay } from '@/lib/useAutoplay';
 import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
 import { likeVideo } from '@/lib/api';
+import { trackComplete, trackPlay } from '@/lib/trackEngagement';
 import { cn } from '@/lib/utils';
 
 interface VideoCardProps {
@@ -36,6 +37,19 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
     setLocalLikes(video.stats.likes);
   }, [video.id, video.liked, video.stats.likes]);
 
+  // Looping videos rarely fire `ended`; treat 80% watch as a complete.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const onTimeUpdate = () => {
+      if (el.duration > 0 && el.currentTime / el.duration >= 0.8) {
+        trackComplete(video.id);
+      }
+    };
+    el.addEventListener('timeupdate', onTimeUpdate);
+    return () => el.removeEventListener('timeupdate', onTimeUpdate);
+  }, [video.id]);
+
   // Sync mute state with video element
   useEffect(() => {
     if (videoRef.current) {
@@ -52,12 +66,15 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
     threshold: 0.7,
     onEnterView: () => {
       setActiveVideoId(video.id);
-      // Reset manually paused state when entering a new video
       manuallyPausedRef.current = false;
+      trackPlay(video.id);
     },
     onLeaveView: () => {
-      // Reset manually paused state when leaving the video
       manuallyPausedRef.current = false;
+      const el = videoRef.current;
+      if (el && el.duration > 0 && el.currentTime / el.duration >= 0.8) {
+        trackComplete(video.id);
+      }
     },
     shouldAutoplay: () => {
       // Return false if user manually paused

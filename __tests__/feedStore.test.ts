@@ -9,6 +9,7 @@ import {
   listComments,
   listVideos,
   loginUser,
+  recordSignal,
   registerUser,
   resetStoreCache,
   toggleLike,
@@ -43,14 +44,14 @@ describe('feedStore identity + persistence', () => {
     const liked = await toggleLike('v_001', a.user.id, dataDir);
     expect(liked.ok && liked.liked).toBe(true);
 
-    const forA = await listVideos(null, 1, a.user.id, dataDir);
-    const forB = await listVideos(null, 1, b.user.id, dataDir);
-    expect(forA.items[0].liked).toBe(true);
-    expect(forB.items[0].liked).toBe(false);
+    const forA = await listVideos(null, 50, a.user.id, dataDir);
+    const forB = await listVideos(null, 50, b.user.id, dataDir);
+    expect(forA.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
+    expect(forB.items.find((v) => v.id === 'v_001')?.liked).toBe(false);
 
     resetStoreCache();
-    const forAAgain = await listVideos(null, 1, a.user.id, dataDir);
-    expect(forAAgain.items[0].liked).toBe(true);
+    const forAAgain = await listVideos(null, 50, a.user.id, dataDir);
+    expect(forAAgain.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
 
     const raw = await readFile(path.join(dataDir, 'store.json'), 'utf-8');
     expect(raw).toContain(a.user.id);
@@ -107,8 +108,44 @@ describe('feedStore identity + persistence', () => {
       dataDir
     );
     expect(video.creator.handle).toBe(`@${guest.user.username}`);
-    const page = await listVideos(null, 1, guest.user.id, dataDir);
-    expect(page.items[0].id).toBe(video.id);
-    expect(page.items[0].caption).toBe('my upload');
+    const page = await listVideos(null, 50, guest.user.id, dataDir);
+    const found = page.items.find((item) => item.id === video.id);
+    expect(found?.caption).toBe('my upload');
+  });
+
+  it('orders the feed by engagement score not insert order', async () => {
+    const guest = await createGuestUser(dataDir);
+    const olderHot = await createVideo(
+      {
+        src: '/uploads/videos/a.webm',
+        poster: '/uploads/posters/a.jpg',
+        duration: 3,
+        caption: 'hot older',
+        user: guest.user,
+      },
+      dataDir
+    );
+    const quietNewer = await createVideo(
+      {
+        src: '/uploads/videos/b.webm',
+        poster: '/uploads/posters/b.jpg',
+        duration: 3,
+        caption: 'quiet newer',
+        user: guest.user,
+      },
+      dataDir
+    );
+
+    for (let i = 0; i < 20; i++) {
+      await recordSignal(olderHot.id, 'play', dataDir);
+      await recordSignal(olderHot.id, 'complete', dataDir);
+    }
+    await toggleLike(olderHot.id, guest.user.id, dataDir);
+
+    const page = await listVideos(null, 50, guest.user.id, dataDir);
+    const ids = page.items.map((item) => item.id);
+    expect(ids.indexOf(olderHot.id)).toBeGreaterThanOrEqual(0);
+    expect(ids.indexOf(quietNewer.id)).toBeGreaterThanOrEqual(0);
+    expect(ids.indexOf(olderHot.id)).toBeLessThan(ids.indexOf(quietNewer.id));
   });
 });

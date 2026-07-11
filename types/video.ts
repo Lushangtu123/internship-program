@@ -27,6 +27,8 @@ export interface Video {
   stats: VideoStats;
   captionsVtt?: string;
   liked?: boolean;
+  /** Epoch ms — used for freshness ranking */
+  createdAt?: number;
 }
 
 export interface Comment {

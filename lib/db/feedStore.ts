@@ -8,6 +8,7 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Comment, Video } from '@/types/video';
+import { rankVideos, type VideoSignals } from '@/lib/db/ranking';
 
 export interface PublicUser {
   id: string;
@@ -28,6 +29,8 @@ export interface FeedStoreData {
   sessions: Record<string, { userId: string; createdAt: number }>;
   /** userId -> videoIds liked by that user */
   likesByUser: Record<string, string[]>;
+  /** videoId -> play/complete counters for ranking */
+  signals: Record<string, VideoSignals>;
 }
 
 const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
@@ -85,22 +88,34 @@ async function readSeed(): Promise<FeedStoreData> {
     videos: Video[];
     comments: Record<string, Comment[]>;
   };
+  const now = Date.now();
   return {
-    videos: seed.videos.map(({ liked: _l, ...v }) => v),
+    videos: seed.videos.map(({ liked: _l, ...v }, index) => ({
+      ...v,
+      createdAt: v.createdAt ?? now - (seed.videos.length - index) * 3_600_000,
+    })),
     comments: { ...seed.comments },
     users: [],
     sessions: {},
     likesByUser: {},
+    signals: {},
   };
 }
 
 function migrate(data: Partial<FeedStoreData>): FeedStoreData {
+  const now = Date.now();
+  const videos = (data.videos ?? []).map(({ liked: _l, ...v }, index, arr) => ({
+    ...(v as Video),
+    createdAt:
+      (v as Video).createdAt ?? now - (arr.length - index) * 3_600_000,
+  }));
   return {
-    videos: (data.videos ?? []).map(({ liked: _l, ...v }) => v as Video),
+    videos,
     comments: data.comments ?? {},
     users: data.users ?? [],
     sessions: data.sessions ?? {},
     likesByUser: data.likesByUser ?? {},
+    signals: data.signals ?? {},
   };
 }
 
@@ -235,22 +250,42 @@ export async function listVideos(
   dataDir?: string
 ): Promise<{ items: Video[]; nextCursor: string | null }> {
   const store = await ensureStore(dataDir);
-  const videos = store.videos;
+  const ranked = rankVideos(store.videos, store.signals);
 
   let startIndex = 0;
   if (cursor) {
-    const cursorIndex = videos.findIndex((v) => v.id === cursor);
+    const cursorIndex = ranked.findIndex((v) => v.id === cursor);
     startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
   }
 
-  const slice = videos.slice(startIndex, startIndex + limit);
-  const items = slice.map((v) => withUserLiked(v, userId ?? null, store.likesByUser));
+  const slice = ranked.slice(startIndex, startIndex + limit);
+  const items = slice.map((v) =>
+    withUserLiked(v, userId ?? null, store.likesByUser)
+  );
   const nextCursor =
-    startIndex + limit < videos.length
-      ? videos[startIndex + limit - 1].id
+    startIndex + limit < ranked.length
+      ? ranked[startIndex + limit - 1].id
       : null;
 
   return { items, nextCursor };
+}
+
+export async function recordSignal(
+  videoId: string,
+  type: 'play' | 'complete',
+  dataDir?: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const store = await ensureStore(dataDir);
+  if (!store.videos.some((v) => v.id === videoId)) {
+    return { ok: false, error: 'Video not found' };
+  }
+
+  const current = store.signals[videoId] ?? { plays: 0, completes: 0 };
+  if (type === 'play') current.plays += 1;
+  if (type === 'complete') current.completes += 1;
+  store.signals[videoId] = current;
+  await persist(store, dataDir);
+  return { ok: true };
 }
 
 export async function toggleLike(
@@ -373,10 +408,12 @@ export async function createVideo(
     },
     stats: { likes: 0, comments: 0, shares: 0 },
     liked: false,
+    createdAt: Date.now(),
   };
 
   store.videos = [video, ...store.videos];
   store.comments[video.id] = [];
+  store.signals[video.id] = { plays: 0, completes: 0 };
   await persist(store, dataDir);
   return video;
 }
