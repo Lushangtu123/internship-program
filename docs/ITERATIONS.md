@@ -142,7 +142,7 @@
 - **方法**：
   - 深链解析完成前禁用 URL sync；找不到视频时保留 `?v=` 直到点 OK
   - e2e：`data-testid=feed-scroll`、评论关闭用 dialog 内按钮、评论文案加时间戳
-- **结果**：chromium e2e 全绿。提交：见本次 main
+- **结果**：chromium e2e 全绿。提交：`216ad11`
 - **后续**：ABR / 对象存储等不确定项走实验分支。
 
 ---
