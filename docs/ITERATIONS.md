@@ -95,7 +95,7 @@
 - **方法**：
   - `UploadSheet` 增加 `onUploaded(videoId)`；刷新 `videos` 缓存后回调
   - Feed：关 sheet、切 For You、`router.replace(/?v=id)`，复用既有 deep-link 滚动
-- **结果**：发布后直接落到刚上传的视频。提交：见本次 main
+- **结果**：发布后直接落到刚上传的视频。提交：`9dadef2`
 - **后续**：分享反馈；首次静音引导。
 
 ---
