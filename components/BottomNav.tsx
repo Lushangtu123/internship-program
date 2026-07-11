@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Home, Users, Plus, Bell, User } from 'lucide-react';
 import { fetchMe } from '@/lib/api';
 import { useNotificationUnread } from '@/components/InboxPanel';
+import { useMessageUnread } from '@/components/MessagesPanel';
 import { cn } from '@/lib/utils';
 
 export type BottomNavTab = 'home' | 'following' | 'create' | 'inbox' | 'me';
@@ -26,7 +27,9 @@ export function BottomNav({
     queryKey: ['auth', 'me'],
     queryFn: fetchMe,
   });
-  const unread = useNotificationUnread();
+  const unreadNotifications = useNotificationUnread();
+  const unreadMessages = useMessageUnread();
+  const unread = unreadNotifications + unreadMessages;
   const profileHref = me ? `/creator/${me.id}` : '/';
 
   const itemClass = (tab: BottomNavTab) =>

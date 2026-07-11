@@ -253,3 +253,103 @@ export async function markNotificationsRead(ids?: string[]): Promise<{
   if (!response.ok) throw new Error('Failed to mark notifications read');
   return response.json();
 }
+
+export type ConversationPeer = AuthUser;
+
+export type DirectMessage = {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  createdAt: number;
+};
+
+export type ConversationSummary = {
+  id: string;
+  peer: ConversationPeer;
+  lastMessage: DirectMessage | null;
+  unreadCount: number;
+  updatedAt: number;
+};
+
+export async function fetchConversations(): Promise<{
+  items: ConversationSummary[];
+  unreadCount: number;
+}> {
+  const response = await apiFetch(`${API_BASE}/conversations`);
+  if (!response.ok) throw new Error('Failed to fetch conversations');
+  return response.json();
+}
+
+export async function openConversation(
+  peerId: string
+): Promise<ConversationSummary> {
+  const response = await apiFetch(`${API_BASE}/conversations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ peerId }),
+  });
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+    };
+    throw new Error(data.error || 'Failed to open conversation');
+  }
+  const data = (await response.json()) as {
+    conversation: ConversationSummary;
+  };
+  return data.conversation;
+}
+
+export async function fetchMessages(
+  conversationId: string,
+  limit = 50
+): Promise<{
+  conversationId: string;
+  peer: ConversationPeer;
+  items: DirectMessage[];
+  unreadCount: number;
+}> {
+  const response = await apiFetch(
+    `${API_BASE}/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`
+  );
+  if (!response.ok) throw new Error('Failed to fetch messages');
+  return response.json();
+}
+
+export async function postMessage(
+  conversationId: string,
+  text: string
+): Promise<DirectMessage> {
+  const response = await apiFetch(
+    `${API_BASE}/conversations/${encodeURIComponent(conversationId)}/messages`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    }
+  );
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+    };
+    throw new Error(data.error || 'Failed to send message');
+  }
+  const data = (await response.json()) as { message: DirectMessage };
+  return data.message;
+}
+
+export async function markConversationRead(
+  conversationId: string
+): Promise<{ ok: boolean; unreadCount: number }> {
+  const response = await apiFetch(
+    `${API_BASE}/conversations/${encodeURIComponent(conversationId)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'read' }),
+    }
+  );
+  if (!response.ok) throw new Error('Failed to mark conversation read');
+  return response.json();
+}

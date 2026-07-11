@@ -169,7 +169,8 @@ We improve toward a TikTok-like product **one step at a time**.
 
 ## Later ideas (not scheduled)
 
-- Messaging / inbox
+- WebSocket realtime for DMs
+- Query-per-op SQLite writes (avoid full snapshot rewrite)
 
 ## Experimental (branch) — productization stack
 
@@ -178,4 +179,5 @@ We improve toward a TikTok-like product **one step at a time**.
 - Persist feed state in SQLite WAL (`data/store.sqlite`) with **normalized relational tables** (migrates legacy JSON / v1 blob)
 - Object storage abstraction: local `public/uploads` (default) or S3-compatible via `STORAGE_DRIVER=s3`
 - Multi-bitrate ABR HLS ladder (360p / 480p / 720p) with master playlist; hls.js caps level to player size
+- **Messaging MVP**: Inbox Activity | Messages; 1:1 DMs; creator Message button; unread badge combines notifications + DMs
 - Branch: `cursor/personalize-async-upload-8729`

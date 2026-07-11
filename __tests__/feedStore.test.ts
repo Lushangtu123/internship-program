@@ -19,6 +19,11 @@ import {
   registerUser,
   resetStoreCache,
   searchCatalog,
+  sendMessage,
+  getOrCreateConversation,
+  listConversations,
+  listMessages,
+  markConversationRead,
   toggleFollow,
   toggleLike,
   toggleSave,
@@ -483,5 +488,73 @@ describe('feedStore identity + persistence', () => {
     await toggleFollow(guest.user.id, before[0].id, dataDir);
     const after = await listSuggestedCreators(guest.user.id, 10, dataDir);
     expect(after.every((c) => c.id !== before[0].id)).toBe(true);
+  });
+
+  it('supports 1:1 messaging between registered users', async () => {
+    const aliceGuest = await createGuestUser(dataDir);
+    const bobGuest = await createGuestUser(dataDir);
+    const alice = await registerUser(
+      `alice_${Date.now().toString(36)}`,
+      'password123',
+      dataDir,
+      aliceGuest.user.id
+    );
+    const bob = await registerUser(
+      `bob_${Date.now().toString(36)}`,
+      'password123',
+      dataDir,
+      bobGuest.user.id
+    );
+    expect('user' in alice && 'user' in bob).toBe(true);
+    if (!('user' in alice) || !('user' in bob)) return;
+
+    const stranger = await createGuestUser(dataDir);
+    const guestTry = await getOrCreateConversation(
+      stranger.user.id,
+      bob.user.id,
+      dataDir
+    );
+    expect(guestTry.ok).toBe(false);
+
+    const opened = await getOrCreateConversation(
+      alice.user.id,
+      bob.user.id,
+      dataDir
+    );
+    expect(opened.ok && opened.conversation.peer.id).toBe(bob.user.id);
+    if (!opened.ok) throw new Error('expected conversation');
+
+    const sent = await sendMessage(
+      opened.conversation.id,
+      alice.user.id,
+      'hello bob',
+      dataDir
+    );
+    expect(sent.ok && sent.message.text).toBe('hello bob');
+
+    const bobList = await listConversations(bob.user.id, dataDir);
+    expect(bobList.unreadCount).toBe(1);
+    expect(bobList.items[0]?.lastMessage?.text).toBe('hello bob');
+
+    const thread = await listMessages(
+      opened.conversation.id,
+      bob.user.id,
+      50,
+      dataDir
+    );
+    expect(thread.ok && thread.items).toHaveLength(1);
+
+    await markConversationRead(opened.conversation.id, bob.user.id, dataDir);
+    const afterRead = await listConversations(bob.user.id, dataDir);
+    expect(afterRead.unreadCount).toBe(0);
+
+    resetStoreCache(dataDir);
+    const again = await listMessages(
+      opened.conversation.id,
+      alice.user.id,
+      50,
+      dataDir
+    );
+    expect(again.ok && again.items[0]?.text).toBe('hello bob');
   });
 });

@@ -41,6 +41,35 @@ export interface NotificationItem {
   createdAt: number;
 }
 
+/** 1:1 DM thread (experimental messaging MVP). */
+export interface ConversationRecord {
+  id: string;
+  /** Lexicographically smaller participant id */
+  userAId: string;
+  /** Lexicographically larger participant id */
+  userBId: string;
+  messages: DirectMessage[];
+  /** userId -> last-read message createdAt */
+  lastReadAtByUser: Record<string, number>;
+  updatedAt: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  createdAt: number;
+}
+
+export interface ConversationSummary {
+  id: string;
+  peer: PublicUser;
+  lastMessage: DirectMessage | null;
+  unreadCount: number;
+  updatedAt: number;
+}
+
 interface StoredUser extends PublicUser {
   passwordHash?: string;
   createdAt: number;
@@ -63,6 +92,8 @@ export interface FeedStoreData {
   follows: Record<string, string[]>;
   /** recipientUserId -> notifications (newest first) */
   notificationsByUser: Record<string, NotificationItem[]>;
+  /** 1:1 direct-message threads */
+  conversations: ConversationRecord[];
 }
 
 const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
@@ -200,6 +231,7 @@ async function readSeed(): Promise<FeedStoreData> {
     playsByUser: {},
     follows: {},
     notificationsByUser: {},
+    conversations: [],
   };
 }
 
@@ -224,6 +256,11 @@ function migrate(data: Partial<FeedStoreData>): FeedStoreData {
     playsByUser: data.playsByUser ?? {},
     follows: data.follows ?? {},
     notificationsByUser: data.notificationsByUser ?? {},
+    conversations: (data.conversations ?? []).map((c) => ({
+      ...c,
+      messages: c.messages ?? [],
+      lastReadAtByUser: c.lastReadAtByUser ?? {},
+    })),
   };
 }
 
@@ -1022,4 +1059,209 @@ export async function markNotificationsRead(
   }
   const unreadCount = list.filter((n) => !n.read).length;
   return { ok: true, unreadCount };
+}
+
+const MAX_MESSAGES_PER_THREAD = 200;
+const MAX_MESSAGE_LENGTH = 1000;
+
+function sortedPair(a: string, b: string): [string, string] {
+  return a < b ? [a, b] : [b, a];
+}
+
+function isParticipant(conv: ConversationRecord, userId: string) {
+  return conv.userAId === userId || conv.userBId === userId;
+}
+
+function peerIdOf(conv: ConversationRecord, userId: string) {
+  return conv.userAId === userId ? conv.userBId : conv.userAId;
+}
+
+function unreadInConversation(conv: ConversationRecord, userId: string) {
+  const lastRead = conv.lastReadAtByUser[userId] ?? 0;
+  return conv.messages.filter(
+    (m) => m.senderId !== userId && m.createdAt > lastRead
+  ).length;
+}
+
+function findConversation(
+  store: FeedStoreData,
+  userAId: string,
+  userBId: string
+) {
+  const [a, b] = sortedPair(userAId, userBId);
+  return store.conversations.find((c) => c.userAId === a && c.userBId === b);
+}
+
+function publicPeer(store: FeedStoreData, peerId: string): PublicUser | null {
+  const user = store.users.find((u) => u.id === peerId);
+  return user ? toPublicUser(user) : null;
+}
+
+export async function listConversations(
+  userId: string,
+  dataDir?: string
+): Promise<{ items: ConversationSummary[]; unreadCount: number }> {
+  const store = await ensureStore(dataDir);
+  const mine = store.conversations
+    .filter((c) => isParticipant(c, userId))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const items: ConversationSummary[] = [];
+  let unreadCount = 0;
+  for (const conv of mine) {
+    const peer = publicPeer(store, peerIdOf(conv, userId));
+    if (!peer) continue;
+    const unread = unreadInConversation(conv, userId);
+    unreadCount += unread;
+    items.push({
+      id: conv.id,
+      peer,
+      lastMessage: conv.messages[conv.messages.length - 1] ?? null,
+      unreadCount: unread,
+      updatedAt: conv.updatedAt,
+    });
+  }
+  return { items, unreadCount };
+}
+
+export async function getOrCreateConversation(
+  userId: string,
+  peerId: string,
+  dataDir?: string
+): Promise<
+  | { ok: true; conversation: ConversationSummary }
+  | { ok: false; error: string }
+> {
+  if (!peerId || peerId === userId) {
+    return { ok: false, error: 'Invalid peer' };
+  }
+  const store = await ensureStore(dataDir);
+  const me = store.users.find((u) => u.id === userId);
+  if (!me || me.isGuest) {
+    return { ok: false, error: 'Sign in to message' };
+  }
+  const peer = publicPeer(store, peerId);
+  if (!peer) {
+    return { ok: false, error: 'User not found' };
+  }
+
+  let conv = findConversation(store, userId, peerId);
+  if (!conv) {
+    const [a, b] = sortedPair(userId, peerId);
+    conv = {
+      id: newId('c'),
+      userAId: a,
+      userBId: b,
+      messages: [],
+      lastReadAtByUser: { [userId]: Date.now() },
+      updatedAt: Date.now(),
+    };
+    store.conversations.push(conv);
+    await persist(store, dataDir);
+  }
+
+  return {
+    ok: true,
+    conversation: {
+      id: conv.id,
+      peer,
+      lastMessage: conv.messages[conv.messages.length - 1] ?? null,
+      unreadCount: unreadInConversation(conv, userId),
+      updatedAt: conv.updatedAt,
+    },
+  };
+}
+
+export async function listMessages(
+  conversationId: string,
+  userId: string,
+  limit = 50,
+  dataDir?: string
+): Promise<
+  | {
+      ok: true;
+      conversationId: string;
+      peer: PublicUser;
+      items: DirectMessage[];
+      unreadCount: number;
+    }
+  | { ok: false; error: string }
+> {
+  const store = await ensureStore(dataDir);
+  const conv = store.conversations.find((c) => c.id === conversationId);
+  if (!conv || !isParticipant(conv, userId)) {
+    return { ok: false, error: 'Conversation not found' };
+  }
+  const peer = publicPeer(store, peerIdOf(conv, userId));
+  if (!peer) {
+    return { ok: false, error: 'Peer not found' };
+  }
+  const items = conv.messages.slice(-Math.max(1, Math.min(limit, 200)));
+  return {
+    ok: true,
+    conversationId: conv.id,
+    peer,
+    items,
+    unreadCount: unreadInConversation(conv, userId),
+  };
+}
+
+export async function sendMessage(
+  conversationId: string,
+  userId: string,
+  text: string,
+  dataDir?: string
+): Promise<
+  | { ok: true; message: DirectMessage }
+  | { ok: false; error: string }
+> {
+  const trimmed = text.trim().slice(0, MAX_MESSAGE_LENGTH);
+  if (!trimmed) {
+    return { ok: false, error: 'Empty message' };
+  }
+  const store = await ensureStore(dataDir);
+  const me = store.users.find((u) => u.id === userId);
+  if (!me || me.isGuest) {
+    return { ok: false, error: 'Sign in to message' };
+  }
+  const conv = store.conversations.find((c) => c.id === conversationId);
+  if (!conv || !isParticipant(conv, userId)) {
+    return { ok: false, error: 'Conversation not found' };
+  }
+
+  const now = Date.now();
+  const message: DirectMessage = {
+    id: newId('m'),
+    conversationId: conv.id,
+    senderId: userId,
+    text: trimmed,
+    createdAt: now,
+  };
+  conv.messages.push(message);
+  if (conv.messages.length > MAX_MESSAGES_PER_THREAD) {
+    conv.messages = conv.messages.slice(-MAX_MESSAGES_PER_THREAD);
+  }
+  conv.updatedAt = now;
+  conv.lastReadAtByUser[userId] = now;
+  await persist(store, dataDir);
+  return { ok: true, message };
+}
+
+export async function markConversationRead(
+  conversationId: string,
+  userId: string,
+  dataDir?: string
+): Promise<{ ok: true; unreadCount: number } | { ok: false; error: string }> {
+  const store = await ensureStore(dataDir);
+  const conv = store.conversations.find((c) => c.id === conversationId);
+  if (!conv || !isParticipant(conv, userId)) {
+    return { ok: false, error: 'Conversation not found' };
+  }
+  const last = conv.messages[conv.messages.length - 1];
+  const stamp = last?.createdAt ?? Date.now();
+  if ((conv.lastReadAtByUser[userId] ?? 0) < stamp) {
+    conv.lastReadAtByUser[userId] = stamp;
+    await persist(store, dataDir);
+  }
+  return { ok: true, unreadCount: unreadInConversation(conv, userId) };
 }

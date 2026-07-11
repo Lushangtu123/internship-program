@@ -9,6 +9,7 @@ import {
   fetchCreatorProfile,
   fetchMe,
   fetchVideos,
+  openConversation,
   toggleFollowCreator,
 } from '@/lib/api';
 import { formatNumber } from '@/lib/utils';
@@ -40,6 +41,7 @@ export default function CreatorProfilePage() {
   const [following, setFollowing] = useState<boolean | null>(null);
   const [tab, setTab] = useState<ProfileTab>('videos');
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [messagePending, setMessagePending] = useState(false);
 
   const isFollowing = following ?? data?.isFollowing ?? false;
   const isSelf = Boolean(me?.id && data?.creator.id === me.id);
@@ -65,6 +67,24 @@ export default function CreatorProfilePage() {
       setFollowing(!next);
     } finally {
       setFollowPending(false);
+    }
+  };
+
+  const onMessage = async () => {
+    if (!data || messagePending || isSelf) return;
+    if (me?.isGuest) {
+      router.push(`/creator/${me.id}`);
+      return;
+    }
+    setMessagePending(true);
+    try {
+      const conversation = await openConversation(data.creator.id);
+      await queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      router.push(`/inbox/c/${encodeURIComponent(conversation.id)}`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMessagePending(false);
     }
   };
 
@@ -146,18 +166,28 @@ export default function CreatorProfilePage() {
         </div>
 
         {!isSelf && (
-          <button
-            type="button"
-            onClick={onFollow}
-            disabled={followPending}
-            className={`mt-5 w-full rounded-md py-2.5 text-sm font-semibold disabled:opacity-60 ${
-              isFollowing
-                ? 'bg-white/15 text-white hover:bg-white/25'
-                : 'bg-white text-black hover:bg-white/90'
-            }`}
-          >
-            {isFollowing ? 'Following' : 'Follow'}
-          </button>
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              onClick={onFollow}
+              disabled={followPending}
+              className={`flex-1 rounded-md py-2.5 text-sm font-semibold disabled:opacity-60 ${
+                isFollowing
+                  ? 'bg-white/15 text-white hover:bg-white/25'
+                  : 'bg-white text-black hover:bg-white/90'
+              }`}
+            >
+              {isFollowing ? 'Following' : 'Follow'}
+            </button>
+            <button
+              type="button"
+              onClick={onMessage}
+              disabled={messagePending}
+              className="flex-1 rounded-md bg-white/15 py-2.5 text-sm font-semibold text-white hover:bg-white/25 disabled:opacity-60"
+            >
+              {me?.isGuest ? 'Sign in to message' : 'Message'}
+            </button>
+          </div>
         )}
         {isSelf && me && <ProfileAuthPanel user={me} />}
       </section>

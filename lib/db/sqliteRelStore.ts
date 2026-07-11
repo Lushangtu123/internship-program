@@ -3,7 +3,12 @@
  * Replaces the single JSON blob snapshot with queryable tables.
  */
 import type { Comment, Video } from '@/types/video';
-import type { FeedStoreData, NotificationItem } from '@/lib/db/feedStore';
+import type {
+  ConversationRecord,
+  DirectMessage,
+  FeedStoreData,
+  NotificationItem,
+} from '@/lib/db/feedStore';
 
 type SqliteStatement = {
   run: (...params: unknown[]) => unknown;
@@ -122,9 +127,34 @@ export function ensureRelationalSchema(db: SqliteDatabase) {
       position INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      user_a_id TEXT NOT NULL,
+      user_b_id TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE (user_a_id, user_b_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      position INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS conversation_reads (
+      conversation_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      last_read_at INTEGER NOT NULL,
+      PRIMARY KEY (conversation_id, user_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_videos_creator ON videos(creator_id);
     CREATE INDEX IF NOT EXISTS idx_comments_video ON comments(video_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
   `);
 }
 
@@ -343,6 +373,56 @@ export function loadFeedStoreFromTables(db: SqliteDatabase): FeedStoreData {
     notificationsByUser[row.user_id] = list;
   }
 
+  const conversationsById = new Map<string, ConversationRecord>();
+  for (const row of allRows<{
+    id: string;
+    user_a_id: string;
+    user_b_id: string;
+    updated_at: number;
+  }>(db, `SELECT * FROM conversations`)) {
+    conversationsById.set(row.id, {
+      id: row.id,
+      userAId: row.user_a_id,
+      userBId: row.user_b_id,
+      messages: [],
+      lastReadAtByUser: {},
+      updatedAt: row.updated_at,
+    });
+  }
+
+  for (const row of allRows<{
+    conversation_id: string;
+    user_id: string;
+    last_read_at: number;
+  }>(db, `SELECT * FROM conversation_reads`)) {
+    const conv = conversationsById.get(row.conversation_id);
+    if (!conv) continue;
+    conv.lastReadAtByUser[row.user_id] = row.last_read_at;
+  }
+
+  for (const row of allRows<{
+    id: string;
+    conversation_id: string;
+    sender_id: string;
+    text: string;
+    created_at: number;
+    position: number;
+  }>(
+    db,
+    `SELECT * FROM messages ORDER BY conversation_id ASC, position ASC`
+  )) {
+    const conv = conversationsById.get(row.conversation_id);
+    if (!conv) continue;
+    const message: DirectMessage = {
+      id: row.id,
+      conversationId: row.conversation_id,
+      senderId: row.sender_id,
+      text: row.text,
+      createdAt: row.created_at,
+    };
+    conv.messages.push(message);
+  }
+
   return {
     videos,
     comments,
@@ -354,6 +434,7 @@ export function loadFeedStoreFromTables(db: SqliteDatabase): FeedStoreData {
     playsByUser,
     follows,
     notificationsByUser,
+    conversations: Array.from(conversationsById.values()),
   };
 }
 
@@ -362,6 +443,9 @@ export function saveFeedStoreToTables(db: SqliteDatabase, data: FeedStoreData) {
   db.exec('BEGIN IMMEDIATE');
   try {
     db.exec(`
+      DELETE FROM conversation_reads;
+      DELETE FROM messages;
+      DELETE FROM conversations;
       DELETE FROM notifications;
       DELETE FROM plays;
       DELETE FROM signals;
@@ -514,10 +598,47 @@ export function saveFeedStoreToTables(db: SqliteDatabase, data: FeedStoreData) {
       });
     }
 
+    const insertConversation = db.prepare(
+      `INSERT INTO conversations (id, user_a_id, user_b_id, updated_at)
+       VALUES (?, ?, ?, ?)`
+    );
+    const insertMessage = db.prepare(
+      `INSERT INTO messages (
+        id, conversation_id, sender_id, text, created_at, position
+      ) VALUES (?, ?, ?, ?, ?, ?)`
+    );
+    const insertRead = db.prepare(
+      `INSERT INTO conversation_reads (conversation_id, user_id, last_read_at)
+       VALUES (?, ?, ?)`
+    );
+    for (const conv of data.conversations ?? []) {
+      insertConversation.run(
+        conv.id,
+        conv.userAId,
+        conv.userBId,
+        conv.updatedAt
+      );
+      conv.messages.forEach((message, position) => {
+        insertMessage.run(
+          message.id,
+          conv.id,
+          message.senderId,
+          message.text,
+          message.createdAt,
+          position
+        );
+      });
+      for (const [userId, lastReadAt] of Object.entries(
+        conv.lastReadAtByUser ?? {}
+      )) {
+        insertRead.run(conv.id, userId, lastReadAt);
+      }
+    }
+
     db.prepare(
       `INSERT INTO meta (key, value) VALUES ('schema_version', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-    ).run('2');
+    ).run('3');
     db.prepare(
       `INSERT INTO meta (key, value) VALUES ('updated_at', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`

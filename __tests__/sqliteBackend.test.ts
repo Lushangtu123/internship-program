@@ -36,6 +36,7 @@ function emptyStore(): FeedStoreData {
     playsByUser: {},
     follows: {},
     notificationsByUser: {},
+    conversations: [],
   };
 }
 
@@ -144,5 +145,48 @@ describe('sqliteBackend', () => {
     await expect(
       access(path.join(dataDir, 'store.json.migrated'))
     ).resolves.toBeUndefined();
+  });
+
+  it('round-trips conversations and messages', () => {
+    const data = emptyStore();
+    data.users.push(
+      {
+        id: 'u_1',
+        username: 'alice',
+        avatar: '/a.png',
+        isGuest: false,
+        createdAt: 1,
+      },
+      {
+        id: 'u_2',
+        username: 'bob',
+        avatar: '/b.png',
+        isGuest: false,
+        createdAt: 2,
+      }
+    );
+    data.conversations.push({
+      id: 'c_1',
+      userAId: 'u_1',
+      userBId: 'u_2',
+      messages: [
+        {
+          id: 'm_1',
+          conversationId: 'c_1',
+          senderId: 'u_1',
+          text: 'hi',
+          createdAt: 10,
+        },
+      ],
+      lastReadAtByUser: { u_1: 10 },
+      updatedAt: 10,
+    });
+    writeSqliteSnapshot(dataDir, data);
+    closeSqliteStore(dataDir);
+
+    const loaded = readSqliteSnapshot(dataDir);
+    expect(loaded?.conversations).toHaveLength(1);
+    expect(loaded?.conversations[0]?.messages[0]?.text).toBe('hi');
+    expect(loaded?.conversations[0]?.lastReadAtByUser.u_1).toBe(10);
   });
 });

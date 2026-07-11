@@ -251,7 +251,18 @@
   - `FeedStoreData` ↔ 表行映射；事务替换写入
   - 自动迁移：`store.json` → v1 blob → v2 表；`feedStore` API 不变
 - **结果**：提交：`9cb7235`；`npm test` 64 通过。
-- **后续**：确认后可合 main；即时通讯仍可选。
+- **后续**：即时通讯 MVP；确认后可合 main。
+
+### 2026-07-11 — 实验：即时通讯 MVP（Inbox Messages）
+
+- **问题**：Inbox 只有活动通知，没有 1:1 私信；创作者主页无法发起对话。
+- **方法**（同实验分支）：
+  - 数据：`conversations` / `messages` / `conversation_reads` 表；`FeedStoreData.conversations`
+  - API：`GET/POST /api/conversations`、`GET/POST .../messages`、`POST ... action:read`
+  - UI：Inbox **Activity | Messages**；`/inbox/c/[id]` 会话页；主页 **Message** 按钮；底栏未读 = 通知 + 私信
+  - 规则：仅注册用户可发；游客引导登录；每会话最多 200 条；轮询刷新
+- **结果**：提交：`ddd51c7`；`npm test` 66 通过。
+- **后续**：确认后可合 main；WebSocket / 按操作 SQL 写入仍可选。
 
 ---
 
