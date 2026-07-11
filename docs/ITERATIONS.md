@@ -330,7 +330,16 @@
   - `fetchVideoPackagingStatus` + `useVideoPackagingPoll`；处理中优先播 `progressiveSrc`
   - `patchVideoPackaging` 写回 React Query；卡片角标 Processing… / failed；主页网格同态 chip
 - **结果**：提交：`6c08c9f`；`npm test` 77 通过。
-- **后续**：Inbox 未读私信智能切 tab；或共享数据库。
+- **后续**：Inbox 智能 Messages tab。
+
+### 2026-07-11 — Step 31：Inbox 智能 Messages tab
+
+- **问题**：底栏未读红点含私信，但 Inbox 总是打开 Activity，容易漏掉私信。
+- **方法**：
+  - `preferInboxTab` / `inboxHref`：仅私信未读 → Messages，否则 Activity
+  - BottomNav 与裸 `/inbox` 共用规则；tab 旁显示未读小圆点
+- **结果**：提交：`517cb6d`；`npm test` 80 通过。
+- **后续**：共享/多实例数据库；或其他产品 polish。
 
 ---
 

@@ -1,30 +1,44 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { BottomNav } from '@/components/BottomNav';
-import { InboxPanel } from '@/components/InboxPanel';
-import { MessagesPanel } from '@/components/MessagesPanel';
+import { InboxPanel, useNotificationUnread } from '@/components/InboxPanel';
+import { MessagesPanel, useMessageUnread } from '@/components/MessagesPanel';
 import { UploadSheet } from '@/components/UploadSheet';
+import { preferInboxTab } from '@/lib/inboxTab';
 
 type InboxTab = 'activity' | 'messages';
 
-function parseTab(value: string | null): InboxTab {
-  return value === 'messages' ? 'messages' : 'activity';
+function parseTab(value: string | null): InboxTab | null {
+  if (value === 'messages') return 'messages';
+  if (value === 'activity') return 'activity';
+  return null;
 }
 
 function InboxContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tab = parseTab(searchParams.get('tab'));
+  const explicitTab = parseTab(searchParams.get('tab'));
+  const unreadNotifications = useNotificationUnread();
+  const unreadMessages = useMessageUnread();
+  const preferred = preferInboxTab(unreadNotifications, unreadMessages);
+  const tab: InboxTab = explicitTab ?? preferred;
   const [uploadOpen, setUploadOpen] = useState(false);
+
+  // When visiting bare /inbox with only DM unread, land on Messages once.
+  useEffect(() => {
+    if (explicitTab) return;
+    if (preferred !== 'messages') return;
+    router.replace('/inbox?tab=messages');
+  }, [explicitTab, preferred, router]);
 
   const setTab = (next: InboxTab) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (next === 'activity') params.delete('tab');
-    else params.set('tab', next);
+    if (next === 'activity') params.set('tab', 'activity');
+    else params.set('tab', 'messages');
     const qs = params.toString();
-    router.replace(qs ? `/inbox?${qs}` : '/inbox');
+    router.replace(`/inbox?${qs}`);
   };
 
   return (
@@ -40,24 +54,30 @@ function InboxContent() {
           <button
             type="button"
             onClick={() => setTab('activity')}
-            className={`pb-2 text-sm font-semibold ${
+            className={`relative pb-2 text-sm font-semibold ${
               tab === 'activity'
                 ? 'border-b-2 border-white text-white'
                 : 'text-white/45'
             }`}
           >
             Activity
+            {unreadNotifications > 0 && (
+              <span className="absolute -right-3 top-0 h-1.5 w-1.5 rounded-full bg-rose-500" />
+            )}
           </button>
           <button
             type="button"
             onClick={() => setTab('messages')}
-            className={`pb-2 text-sm font-semibold ${
+            className={`relative pb-2 text-sm font-semibold ${
               tab === 'messages'
                 ? 'border-b-2 border-white text-white'
                 : 'text-white/45'
             }`}
           >
             Messages
+            {unreadMessages > 0 && (
+              <span className="absolute -right-3 top-0 h-1.5 w-1.5 rounded-full bg-rose-500" />
+            )}
           </button>
         </div>
       </header>

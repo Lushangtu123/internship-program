@@ -184,7 +184,11 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 - Polls `GET /api/videos/[id]` and patches React Query caches when ready
 - Own-profile grid shows Processing / Failed chips
 
+## Step 31 — Inbox smart Messages tab ✅
+
+- Bottom nav → Messages when only DMs are unread (activity unread still opens Activity)
+- Bare `/inbox` auto-lands on Messages in the same case; tabs show unread dots
+
 ## Later ideas (not scheduled)
 
 - Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)
-- Inbox smart-tab when only DMs are unread
