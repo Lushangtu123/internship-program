@@ -30,6 +30,7 @@ import {
   updateVideoCaption,
   updateVideoPlayback,
 } from '@/lib/db/feedStore';
+import { unreadActivityNotificationIds } from '@/lib/inboxUnread';
 
 describe('feedStore identity + persistence', () => {
   let dataDir: string;
@@ -557,6 +558,32 @@ describe('feedStore identity + persistence', () => {
     expect(messageNotes).toHaveLength(1);
     expect(messageNotes[0]?.text).toBe('second ping');
     expect(messageNotes[0]?.read).toBe(false);
+
+    // Activity-style mark-read: likes clear, DM Activity rows stay unread.
+    const bobVideo = await createVideo(
+      {
+        src: '/uploads/videos/bob.webm',
+        poster: '/uploads/posters/bob.jpg',
+        duration: 2,
+        caption: 'bob clip',
+        user: bob.user,
+      },
+      dataDir
+    );
+    await toggleLike(bobVideo.id, alice.user.id, dataDir);
+    const mixed = await listNotifications(bob.user.id, 20, dataDir);
+    const activityIds = unreadActivityNotificationIds(mixed.items);
+    expect(activityIds.length).toBeGreaterThanOrEqual(1);
+    await markNotificationsRead(bob.user.id, activityIds, dataDir);
+    const afterActivity = await listNotifications(bob.user.id, 20, dataDir);
+    expect(
+      afterActivity.items.filter((n) => n.type === 'like').every((n) => n.read)
+    ).toBe(true);
+    expect(
+      afterActivity.items
+        .filter((n) => n.type === 'message')
+        .every((n) => !n.read)
+    ).toBe(true);
 
     const bobList = await listConversations(bob.user.id, dataDir);
     expect(bobList.unreadCount).toBe(2);

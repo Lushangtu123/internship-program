@@ -5,6 +5,9 @@ describe('preferInboxTab', () => {
   it('opens messages when only DMs are unread', () => {
     expect(preferInboxTab(0, 3)).toBe('messages');
     expect(inboxHref(0, 1)).toBe('/inbox?tab=messages');
+    // DM Activity rows are excluded from the activity count by callers,
+    // so "only DMs" still lands on Messages even when message notifs exist.
+    expect(preferInboxTab(0, 2)).toBe('messages');
   });
 
   it('opens activity when notifications are unread', () => {

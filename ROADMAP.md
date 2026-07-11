@@ -215,6 +215,12 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 - Avoids flooding Inbox Activity while the conversation is still unread
 - Messaging store test asserts: Activity coalesces to one row; conversation unread still counts each DM
 
+## Step 37 — Preserve DM Activity rows + unread accounting ✅
+
+- Opening Activity marks likes/comments/follows read, but leaves `type=message` rows until the thread is read
+- Bottom-nav badge and smart Inbox landing use activity-only unread (no double-count with conversation unread)
+- Helpers: `lib/inboxUnread.ts`
+
 ## Later ideas (not scheduled)
 
 - Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)
