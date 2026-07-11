@@ -111,12 +111,16 @@ internship-program/
 │   └── ui/
 ├── lib/
 ├── types/
+├── data/                    # Local persistent store (Step 1)
+│   └── store.json           # Created at runtime from seed
 ├── public/
 │   ├── mock/seed.json
 │   ├── videos/              # Local sample WebM clips
 │   ├── posters/
 │   ├── avatars/
 │   └── captions/
+├── lib/
+│   └── db/feedStore.ts      # File-backed videos/likes/comments
 ├── docs/archive/            # Archived troubleshooting notes
 ├── __tests__/
 ├── e2e/
@@ -134,7 +138,7 @@ internship-program/
 | `POST` | `/api/videos/:id/comments` | Post a comment |
 | `POST` | `/api/telemetry` | QoE telemetry |
 
-APIs are mock implementations. Content lives in `public/mock/seed.json`. Sample videos are local WebM files under `public/videos/` (reliable in Chromium without proprietary codecs).
+APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Likes and comments survive server restarts. Auth, upload, and HLS are intentionally out of scope for Step 1.
 
 ## Configuration
 
@@ -164,6 +168,7 @@ Run `npm run lhci` against `.lighthouserc.json` locally.
 
 | Doc | Purpose |
 |------|------|
+| [ROADMAP.md](./ROADMAP.md) | Incremental product steps |
 | [QUICKSTART.md](./QUICKSTART.md) | Quick start |
 | [CODING_GUIDE.md](./CODING_GUIDE.md) | Requirements & AI execution protocol |
 | [README_PROJECT.md](./README_PROJECT.md) | Design & implementation notes |

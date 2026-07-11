@@ -52,5 +52,6 @@ export interface CommentsResponse {
 export interface LikeResponse {
   ok: boolean;
   liked: boolean;
+  likes?: number;
 }
 

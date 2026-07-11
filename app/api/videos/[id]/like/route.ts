@@ -1,23 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toggleLike } from '@/lib/db/feedStore';
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const videoId = params.id;
-  
-  // Simulate server processing
-  await new Promise(resolve => setTimeout(resolve, 100));
+  const result = await toggleLike(params.id);
 
-  // In a real app, this would update the database
-  // For now, we'll just return success
-  // The client will handle optimistic updates
-  
-  const liked = Math.random() > 0.1; // 90% success rate
+  if (!result.ok) {
+    return NextResponse.json({ ok: false, error: result.error }, { status: 404 });
+  }
 
   return NextResponse.json({
     ok: true,
-    liked,
+    liked: result.liked,
+    likes: result.likes,
   });
 }
-

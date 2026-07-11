@@ -38,3 +38,6 @@ next-env.d.ts
 # lighthouse
 .lighthouseci
 
+# local persistent feed store (Step 1)
+/data/store.json
+
