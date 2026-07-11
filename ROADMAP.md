@@ -92,6 +92,11 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - AuthBar identity chip links to `/creator/[me]`
 - Profile page hides Follow when viewing yourself
 
+## Step 16 — Comment count sync on cards ✅
+
+- Posting / loading comments patches React Query `videos` (and creator) caches
+- Action-bar comment badge stays in sync with the drawer
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
