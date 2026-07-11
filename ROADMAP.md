@@ -213,6 +213,7 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 
 - Multiple unread DMs in the same thread refresh one Activity row (latest preview)
 - Avoids flooding Inbox Activity while the conversation is still unread
+- Messaging store test asserts: Activity coalesces to one row; conversation unread still counts each DM
 
 ## Later ideas (not scheduled)
 

@@ -559,8 +559,8 @@ describe('feedStore identity + persistence', () => {
     expect(messageNotes[0]?.read).toBe(false);
 
     const bobList = await listConversations(bob.user.id, dataDir);
-    expect(bobList.unreadCount).toBe(1);
-    expect(bobList.items[0]?.lastMessage?.text).toBe('hello bob');
+    expect(bobList.unreadCount).toBe(2);
+    expect(bobList.items[0]?.lastMessage?.text).toBe('second ping');
 
     const thread = await listMessages(
       opened.conversation.id,
@@ -568,7 +568,7 @@ describe('feedStore identity + persistence', () => {
       50,
       dataDir
     );
-    expect(thread.ok && thread.items).toHaveLength(1);
+    expect(thread.ok && thread.items).toHaveLength(2);
 
     await markConversationRead(opened.conversation.id, bob.user.id, dataDir);
     const afterRead = await listConversations(bob.user.id, dataDir);

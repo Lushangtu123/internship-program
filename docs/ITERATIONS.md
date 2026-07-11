@@ -378,13 +378,20 @@
 - **结果**：提交：`6dd3896`；`npm test` 83 通过。
 - **后续**：同会话未读私信通知合并。
 
+### 2026-07-11 — Fix：私信测试断言与合并行为对齐
+
+- **问题**：Step 36 合并通知测试发了第二条消息后，仍按「仅一条未读」断言 `unreadCount` / `lastMessage` / 线程条数，导致 `npm test` 失败（此前被 `tail` 管道掩盖）。
+- **方法**：第二条消息后期望会话未读为 2、预览为 `second ping`、线程 2 条；Activity 仍保持合并为 1 行。
+- **结果**：提交：`3319d47`；`npm test` 83 通过。
+- **后续**：共享/多实例数据库；或其他 polish。
+
 ### 2026-07-11 — Step 36：同会话未读私信通知合并
 
 - **问题**：连续发多条私信会在 Activity 堆很多 message 行。
 - **方法**：
   - `pushOrCoalesceMessageNotification`：同 `conversationId` 且未读则更新预览并置顶
   - SQL：`opRefreshNotification`（删旧插新到 position 0）
-- **结果**：提交：`b014e61`；`npm test` 83 通过。
+- **结果**：提交：`b014e61`；合并通知行为正确，但 messaging 测试断言未同步（见上条 Fix）。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---
