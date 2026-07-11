@@ -243,6 +243,16 @@
 - **结果**：`07db91f`。
 - **后续**：规范化 SQL 表结构；确认后可合 main。
 
+### 2026-07-11 — 实验：规范化 SQLite 关系表
+
+- **问题**：v1 仍是整包 JSON blob，无法按用户/视频查询；备份与演进困难。
+- **方法**（同实验分支）：
+  - 关系表：`users` / `sessions` / `videos` / `comments` / `likes` / `saves` / `follows` / `signals` / `plays` / `notifications`
+  - `FeedStoreData` ↔ 表行映射；事务替换写入
+  - 自动迁移：`store.json` → v1 blob → v2 表；`feedStore` API 不变
+- **结果**：见本条合入 commit。
+- **后续**：确认后可合 main；即时通讯仍可选。
+
 ---
 
 <!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->

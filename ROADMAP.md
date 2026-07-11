@@ -170,13 +170,12 @@ We improve toward a TikTok-like product **one step at a time**.
 ## Later ideas (not scheduled)
 
 - Messaging / inbox
-- Normalized SQL schema (beyond snapshot blob)
 
 ## Experimental (branch) — productization stack
 
 - Affinity boosts on For You from follows / liked creators / saves / plays
 - Upload returns progressive playback immediately (`status=processing`); HLS packages in background
-- Persist feed state in SQLite WAL (`data/store.sqlite`) instead of rewriting `store.json`
+- Persist feed state in SQLite WAL (`data/store.sqlite`) with **normalized relational tables** (migrates legacy JSON / v1 blob)
 - Object storage abstraction: local `public/uploads` (default) or S3-compatible via `STORAGE_DRIVER=s3`
 - Multi-bitrate ABR HLS ladder (360p / 480p / 720p) with master playlist; hls.js caps level to player size
 - Branch: `cursor/personalize-async-upload-8729`

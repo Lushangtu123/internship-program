@@ -3,8 +3,8 @@
  * Guests are auto-created; register/login upgrades to a real account.
  * Likes are per-user; comments carry the acting user's identity.
  *
- * Persistence (experimental): SQLite WAL snapshot via lib/db/sqliteBackend.ts
- * (replaces chained store.json rewrites). In-memory document API unchanged.
+ * Persistence (experimental): normalized SQLite tables via lib/db/sqliteBackend.ts
+ * (WAL; migrates legacy store.json / v1 JSON blob). In-memory document API unchanged.
  */
 
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
