@@ -154,3 +154,40 @@ export async function postComment(
   if (!response.ok) throw new Error('Failed to post comment');
   return response.json();
 }
+
+export type AppNotification = {
+  id: string;
+  userId: string;
+  type: 'like' | 'comment' | 'follow';
+  actorId: string;
+  actorUsername: string;
+  actorAvatar: string;
+  videoId?: string;
+  text?: string;
+  read: boolean;
+  createdAt: number;
+};
+
+export async function fetchNotifications(limit = 30): Promise<{
+  items: AppNotification[];
+  unreadCount: number;
+}> {
+  const response = await apiFetch(
+    `${API_BASE}/notifications?limit=${limit}`
+  );
+  if (!response.ok) throw new Error('Failed to fetch notifications');
+  return response.json();
+}
+
+export async function markNotificationsRead(ids?: string[]): Promise<{
+  ok: boolean;
+  unreadCount: number;
+}> {
+  const response = await apiFetch(`${API_BASE}/notifications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'read', ids }),
+  });
+  if (!response.ok) throw new Error('Failed to mark notifications read');
+  return response.json();
+}

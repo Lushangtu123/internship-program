@@ -8,6 +8,7 @@ import { DebugPanel } from '@/components/DebugPanel';
 import { AuthBar } from '@/components/AuthBar';
 import { UploadButton } from '@/components/UploadButton';
 import { FeedTabs } from '@/components/FeedTabs';
+import { NotificationBell } from '@/components/NotificationBell';
 import { useKeyboardShortcuts } from '@/lib/keyboard';
 import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
@@ -169,6 +170,7 @@ function FeedPageContent() {
           setFeedMode(mode);
         }}
       />
+      <NotificationBell />
       <UploadButton />
 
       {/* Feed Container */}

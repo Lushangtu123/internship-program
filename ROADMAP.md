@@ -55,9 +55,14 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - `GET /api/videos?feed=saved` returns saved videos (newest first)
 - Bookmark control on each card; top tab **Saved**
 
+## Step 9 — Notifications ✅
+
+- Like / comment / follow events write in-app notifications (no self-notify)
+- `GET /api/notifications` + `POST /api/notifications` (`action: read`)
+- Bell UI with unread badge on the feed
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
 - Real object storage + CDN origin
-- Notifications
 - Messaging / inbox

@@ -17,6 +17,21 @@ export interface PublicUser {
   isGuest: boolean;
 }
 
+export type NotificationType = 'like' | 'comment' | 'follow';
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  actorId: string;
+  actorUsername: string;
+  actorAvatar: string;
+  videoId?: string;
+  text?: string;
+  read: boolean;
+  createdAt: number;
+}
+
 interface StoredUser extends PublicUser {
   passwordHash?: string;
   createdAt: number;
@@ -35,6 +50,8 @@ export interface FeedStoreData {
   signals: Record<string, VideoSignals>;
   /** followerUserId -> creatorIds they follow */
   follows: Record<string, string[]>;
+  /** recipientUserId -> notifications (newest first) */
+  notificationsByUser: Record<string, NotificationItem[]>;
 }
 
 const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
@@ -80,6 +97,45 @@ function toPublicUser(user: StoredUser): PublicUser {
   };
 }
 
+function pushNotification(
+  store: FeedStoreData,
+  recipientId: string,
+  input: {
+    type: NotificationType;
+    actorId: string;
+    actorUsername: string;
+    actorAvatar: string;
+    videoId?: string;
+    text?: string;
+  }
+) {
+  if (!recipientId || recipientId === input.actorId) return;
+  const item: NotificationItem = {
+    id: newId('n'),
+    userId: recipientId,
+    type: input.type,
+    actorId: input.actorId,
+    actorUsername: input.actorUsername,
+    actorAvatar: input.actorAvatar,
+    videoId: input.videoId,
+    text: input.text,
+    read: false,
+    createdAt: Date.now(),
+  };
+  const existing = store.notificationsByUser[recipientId] ?? [];
+  store.notificationsByUser[recipientId] = [item, ...existing].slice(0, 100);
+}
+
+function actorFromStore(store: FeedStoreData, userId: string) {
+  const user = store.users.find((u) => u.id === userId);
+  if (!user) return null;
+  return {
+    actorId: user.id,
+    actorUsername: user.username,
+    actorAvatar: user.avatar,
+  };
+}
+
 function withUserContext(
   video: Video,
   userId: string | null,
@@ -115,6 +171,7 @@ async function readSeed(): Promise<FeedStoreData> {
     savesByUser: {},
     signals: {},
     follows: {},
+    notificationsByUser: {},
   };
 }
 
@@ -136,6 +193,7 @@ function migrate(data: Partial<FeedStoreData>): FeedStoreData {
     savesByUser: data.savesByUser ?? {},
     signals: data.signals ?? {},
     follows: data.follows ?? {},
+    notificationsByUser: data.notificationsByUser ?? {},
   };
 }
 
@@ -343,6 +401,15 @@ export async function toggleFollow(
     set.add(creatorId);
   }
   store.follows[followerId] = Array.from(set);
+  if (!currentlyFollowing) {
+    const actor = actorFromStore(store, followerId);
+    if (actor) {
+      pushNotification(store, creatorId, {
+        type: 'follow',
+        ...actor,
+      });
+    }
+  }
   await persist(store, dataDir);
   return { ok: true, following: !currentlyFollowing };
 }
@@ -452,6 +519,16 @@ export async function toggleLike(
     video.stats.likes += 1;
   }
   store.likesByUser[userId] = Array.from(likedSet);
+  if (!currentlyLiked) {
+    const actor = actorFromStore(store, userId);
+    if (actor) {
+      pushNotification(store, video.creator.id, {
+        type: 'like',
+        ...actor,
+        videoId,
+      });
+    }
+  }
   await persist(store, dataDir);
 
   return { ok: true, liked: !currentlyLiked, likes: video.stats.likes };
@@ -539,6 +616,14 @@ export async function addComment(
   }
   store.comments[videoId] = [comment, ...store.comments[videoId]];
   video.stats.comments += 1;
+  pushNotification(store, video.creator.id, {
+    type: 'comment',
+    actorId: user.id,
+    actorUsername: user.username,
+    actorAvatar: user.avatar,
+    videoId,
+    text: trimmed.slice(0, 80),
+  });
   await persist(store, dataDir);
 
   return comment;
@@ -582,4 +667,38 @@ export async function createVideo(
   store.signals[video.id] = { plays: 0, completes: 0 };
   await persist(store, dataDir);
   return video;
+}
+
+export async function listNotifications(
+  userId: string,
+  limit = 30,
+  dataDir?: string
+): Promise<{ items: NotificationItem[]; unreadCount: number }> {
+  const store = await ensureStore(dataDir);
+  const all = store.notificationsByUser[userId] ?? [];
+  const unreadCount = all.filter((n) => !n.read).length;
+  return { items: all.slice(0, limit), unreadCount };
+}
+
+export async function markNotificationsRead(
+  userId: string,
+  ids?: string[],
+  dataDir?: string
+): Promise<{ ok: true; unreadCount: number }> {
+  const store = await ensureStore(dataDir);
+  const list = store.notificationsByUser[userId] ?? [];
+  const idSet = ids && ids.length > 0 ? new Set(ids) : null;
+  let changed = false;
+  for (const item of list) {
+    if (!item.read && (!idSet || idSet.has(item.id))) {
+      item.read = true;
+      changed = true;
+    }
+  }
+  if (changed) {
+    store.notificationsByUser[userId] = list;
+    await persist(store, dataDir);
+  }
+  const unreadCount = list.filter((n) => !n.read).length;
+  return { ok: true, unreadCount };
 }
