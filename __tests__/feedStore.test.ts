@@ -12,6 +12,7 @@ import {
   recordSignal,
   registerUser,
   resetStoreCache,
+  toggleFollow,
   toggleLike,
 } from '@/lib/db/feedStore';
 
@@ -147,5 +148,28 @@ describe('feedStore identity + persistence', () => {
     expect(ids.indexOf(olderHot.id)).toBeGreaterThanOrEqual(0);
     expect(ids.indexOf(quietNewer.id)).toBeGreaterThanOrEqual(0);
     expect(ids.indexOf(olderHot.id)).toBeLessThan(ids.indexOf(quietNewer.id));
+  });
+
+  it('filters following feed to followed creators only', async () => {
+    const guest = await createGuestUser(dataDir);
+    const followed = await toggleFollow(guest.user.id, 'u_1', dataDir);
+    expect(followed.ok && followed.following).toBe(true);
+
+    const followingFeed = await listVideos(
+      null,
+      50,
+      guest.user.id,
+      dataDir,
+      'following'
+    );
+    expect(followingFeed.items.length).toBeGreaterThan(0);
+    expect(
+      followingFeed.items.every((video) => video.creator.id === 'u_1')
+    ).toBe(true);
+    expect(followingFeed.items.every((video) => video.isFollowing)).toBe(true);
+
+    const forYou = await listVideos(null, 50, guest.user.id, dataDir, 'foryou');
+    const sample = forYou.items.find((video) => video.creator.id === 'u_1');
+    expect(sample?.isFollowing).toBe(true);
   });
 });

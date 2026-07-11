@@ -7,6 +7,7 @@ import { CommentsDrawer } from '@/components/CommentsDrawer';
 import { DebugPanel } from '@/components/DebugPanel';
 import { AuthBar } from '@/components/AuthBar';
 import { UploadButton } from '@/components/UploadButton';
+import { FeedTabs } from '@/components/FeedTabs';
 import { useKeyboardShortcuts } from '@/lib/keyboard';
 import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
@@ -17,6 +18,7 @@ import { useSearchParams } from 'next/navigation';
 function FeedPageContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [feedMode, setFeedMode] = useState<'foryou' | 'following'>('foryou');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   
@@ -36,13 +38,18 @@ function FeedPageContent() {
     isFetchingNextPage,
     isLoading,
   } = useInfiniteQuery({
-    queryKey: ['videos'],
-    queryFn: ({ pageParam }) => fetchVideos(pageParam, 5),
+    queryKey: ['videos', feedMode],
+    queryFn: ({ pageParam }) => fetchVideos(pageParam, 5, feedMode),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: null as string | null,
   });
 
   const videos = data?.pages.flatMap((page) => page.items) ?? [];
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    containerRef.current?.scrollTo({ top: 0 });
+  }, [feedMode]);
 
   // Prefetch adjacent videos
   useVideoPrefetch(currentIndex, videos, 2);
@@ -154,6 +161,12 @@ function FeedPageContent() {
   return (
     <>
       <AuthBar />
+      <FeedTabs
+        mode={feedMode}
+        onChange={(mode) => {
+          setFeedMode(mode);
+        }}
+      />
       <UploadButton />
 
       {/* Feed Container */}
@@ -162,14 +175,27 @@ function FeedPageContent() {
         className="h-screen overflow-y-scroll snap-y snap-mandatory no-scrollbar"
         style={{ scrollSnapType: 'y mandatory' }}
       >
-        {videos.map((video, index) => (
-          <VideoCard
-            key={video.id}
-            video={video}
-            isActive={index === currentIndex}
-            onCommentClick={() => handleCommentClick(video.id)}
-          />
-        ))}
+        {videos.length === 0 ? (
+          <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
+            <p className="text-lg font-semibold">
+              {feedMode === 'following' ? 'No following videos yet' : 'No videos'}
+            </p>
+            <p className="text-sm text-white/60">
+              {feedMode === 'following'
+                ? 'Follow creators on For You, then check back here.'
+                : 'Upload a video to get started.'}
+            </p>
+          </div>
+        ) : (
+          videos.map((video, index) => (
+            <VideoCard
+              key={video.id}
+              video={video}
+              isActive={index === currentIndex}
+              onCommentClick={() => handleCommentClick(video.id)}
+            />
+          ))
+        )}
 
         {/* Loading indicator */}
         {isFetchingNextPage && (

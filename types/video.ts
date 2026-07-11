@@ -27,6 +27,8 @@ export interface Video {
   stats: VideoStats;
   captionsVtt?: string;
   liked?: boolean;
+  /** Whether the current viewer follows this creator */
+  isFollowing?: boolean;
   /** Epoch ms — used for freshness ranking */
   createdAt?: number;
 }

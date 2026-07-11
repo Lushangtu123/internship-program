@@ -36,9 +36,16 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Score = engagement (`likes/comments/plays/completes`) + freshness
 - Feed list is ranked by score (not raw insert order)
 
+## Step 6 — Follow graph + Following feed ✅
+
+- `POST /api/follow` toggles follow for a creator
+- `GET /api/videos?feed=following|foryou`
+- Top tabs: **For You** / **Following**
+- Follow button on each video card
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
-- Follow graph / following feed
 - Real object storage + CDN origin
 - Creator profiles and notifications
+- Messaging / inbox

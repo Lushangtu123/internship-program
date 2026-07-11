@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Play, Pause, Volume2, VolumeX, MoreVertical } from 'lucide-react';
 import { Video } from '@/types/video';
 import { ActionsBar } from './ActionsBar';
@@ -8,7 +9,7 @@ import { CaptionBadge } from './CaptionBadge';
 import { useAutoplay } from '@/lib/useAutoplay';
 import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
-import { likeVideo } from '@/lib/api';
+import { likeVideo, toggleFollowCreator } from '@/lib/api';
 import { trackComplete, trackPlay } from '@/lib/trackEngagement';
 import { cn } from '@/lib/utils';
 
@@ -19,10 +20,13 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
+  const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const manuallyPausedRef = useRef(false); // Use ref for immediate access
   const [localLiked, setLocalLiked] = useState(video.liked || false);
   const [localLikes, setLocalLikes] = useState(video.stats.likes);
+  const [localFollowing, setLocalFollowing] = useState(video.isFollowing || false);
+  const [followPending, setFollowPending] = useState(false);
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const [showControls, setShowControls] = useState(false);
@@ -35,7 +39,8 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   useEffect(() => {
     setLocalLiked(video.liked || false);
     setLocalLikes(video.stats.likes);
-  }, [video.id, video.liked, video.stats.likes]);
+    setLocalFollowing(video.isFollowing || false);
+  }, [video.id, video.liked, video.stats.likes, video.isFollowing]);
 
   // Looping videos rarely fire `ended`; treat 80% watch as a complete.
   useEffect(() => {
@@ -161,6 +166,24 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
       console.error('Failed to like video:', error);
       setLocalLiked(!newLiked);
       setLocalLikes((n) => Math.max(0, n + (newLiked ? -1 : 1)));
+    }
+  };
+
+  const handleFollow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (followPending) return;
+    const next = !localFollowing;
+    setLocalFollowing(next);
+    setFollowPending(true);
+    try {
+      const result = await toggleFollowCreator(video.creator.id);
+      setLocalFollowing(result.following);
+      await queryClient.invalidateQueries({ queryKey: ['videos'] });
+    } catch (error) {
+      console.error('Failed to toggle follow:', error);
+      setLocalFollowing(!next);
+    } finally {
+      setFollowPending(false);
     }
   };
 
@@ -300,8 +323,18 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
                 <span className="font-semibold text-white truncate">
                   {video.creator.handle}
                 </span>
-                <button className="px-4 py-1 rounded-md bg-primary hover:bg-primary/90 text-white text-sm font-semibold flex-shrink-0">
-                  Follow
+                <button
+                  type="button"
+                  onClick={handleFollow}
+                  disabled={followPending}
+                  className={cn(
+                    'px-4 py-1 rounded-md text-sm font-semibold flex-shrink-0 disabled:opacity-60',
+                    localFollowing
+                      ? 'bg-white/20 text-white hover:bg-white/30'
+                      : 'bg-primary hover:bg-primary/90 text-white'
+                  )}
+                >
+                  {localFollowing ? 'Following' : 'Follow'}
                 </button>
               </div>
             </div>

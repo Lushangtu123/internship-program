@@ -31,6 +31,8 @@ export interface FeedStoreData {
   likesByUser: Record<string, string[]>;
   /** videoId -> play/complete counters for ranking */
   signals: Record<string, VideoSignals>;
+  /** followerUserId -> creatorIds they follow */
+  follows: Record<string, string[]>;
 }
 
 const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
@@ -76,10 +78,18 @@ function toPublicUser(user: StoredUser): PublicUser {
   };
 }
 
-function withUserLiked(video: Video, userId: string | null, likesByUser: FeedStoreData['likesByUser']): Video {
+function withUserContext(
+  video: Video,
+  userId: string | null,
+  likesByUser: FeedStoreData['likesByUser'],
+  follows: FeedStoreData['follows']
+): Video {
   const liked = userId ? (likesByUser[userId] ?? []).includes(video.id) : false;
-  const { liked: _ignored, ...rest } = video;
-  return { ...rest, liked };
+  const isFollowing = userId
+    ? (follows[userId] ?? []).includes(video.creator.id)
+    : false;
+  const { liked: _ignored, isFollowing: _f, ...rest } = video;
+  return { ...rest, liked, isFollowing };
 }
 
 async function readSeed(): Promise<FeedStoreData> {
@@ -99,6 +109,7 @@ async function readSeed(): Promise<FeedStoreData> {
     sessions: {},
     likesByUser: {},
     signals: {},
+    follows: {},
   };
 }
 
@@ -116,6 +127,7 @@ function migrate(data: Partial<FeedStoreData>): FeedStoreData {
     sessions: data.sessions ?? {},
     likesByUser: data.likesByUser ?? {},
     signals: data.signals ?? {},
+    follows: data.follows ?? {},
   };
 }
 
@@ -247,10 +259,21 @@ export async function listVideos(
   cursor: string | null,
   limit: number,
   userId?: string | null,
-  dataDir?: string
+  dataDir?: string,
+  feed: 'foryou' | 'following' = 'foryou'
 ): Promise<{ items: Video[]; nextCursor: string | null }> {
   const store = await ensureStore(dataDir);
-  const ranked = rankVideos(store.videos, store.signals);
+  let pool = store.videos;
+
+  if (feed === 'following') {
+    if (!userId) {
+      return { items: [], nextCursor: null };
+    }
+    const following = new Set(store.follows[userId] ?? []);
+    pool = store.videos.filter((v) => following.has(v.creator.id));
+  }
+
+  const ranked = rankVideos(pool, store.signals);
 
   let startIndex = 0;
   if (cursor) {
@@ -260,7 +283,7 @@ export async function listVideos(
 
   const slice = ranked.slice(startIndex, startIndex + limit);
   const items = slice.map((v) =>
-    withUserLiked(v, userId ?? null, store.likesByUser)
+    withUserContext(v, userId ?? null, store.likesByUser, store.follows)
   );
   const nextCursor =
     startIndex + limit < ranked.length
@@ -268,6 +291,34 @@ export async function listVideos(
       : null;
 
   return { items, nextCursor };
+}
+
+export async function toggleFollow(
+  followerId: string,
+  creatorId: string,
+  dataDir?: string
+): Promise<
+  | { ok: true; following: boolean }
+  | { ok: false; error: string; status: number }
+> {
+  if (!creatorId) {
+    return { ok: false, error: 'creatorId required', status: 400 };
+  }
+  if (followerId === creatorId) {
+    return { ok: false, error: 'Cannot follow yourself', status: 400 };
+  }
+
+  const store = await ensureStore(dataDir);
+  const set = new Set(store.follows[followerId] ?? []);
+  const currentlyFollowing = set.has(creatorId);
+  if (currentlyFollowing) {
+    set.delete(creatorId);
+  } else {
+    set.add(creatorId);
+  }
+  store.follows[followerId] = Array.from(set);
+  await persist(store, dataDir);
+  return { ok: true, following: !currentlyFollowing };
 }
 
 export async function recordSignal(

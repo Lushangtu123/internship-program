@@ -66,15 +66,30 @@ export async function logout(): Promise<void> {
 
 export async function fetchVideos(
   cursor?: string | null,
-  limit: number = 5
+  limit: number = 5,
+  feed: 'foryou' | 'following' = 'foryou'
 ): Promise<VideosResponse> {
   const params = new URLSearchParams();
   if (cursor) params.set('cursor', cursor);
   params.set('limit', limit.toString());
+  params.set('feed', feed);
 
   const response = await apiFetch(`${API_BASE}/videos?${params}`);
   if (!response.ok) throw new Error('Failed to fetch videos');
   return response.json();
+}
+
+export async function toggleFollowCreator(
+  creatorId: string
+): Promise<{ ok: boolean; following: boolean }> {
+  const response = await apiFetch(`${API_BASE}/follow`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ creatorId }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Follow failed');
+  return data;
 }
 
 export async function likeVideo(videoId: string): Promise<LikeResponse> {
