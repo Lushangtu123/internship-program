@@ -9,10 +9,13 @@ import {
 import type { FeedStoreData } from '@/lib/db/feedStore';
 import {
   countTableRows,
+  opAddComment,
   opAppendMessage,
   opInsertConversation,
   opMarkConversationRead,
   opMarkNotificationsRead,
+  opToggleFollow,
+  opToggleLike,
 } from '@/lib/db/sqliteOps';
 
 function emptyStore(): FeedStoreData {
@@ -122,5 +125,91 @@ describe('sqliteOps incremental writes', () => {
     expect(loaded?.conversations[0]?.messages[0]?.text).toBe('hello');
     expect(loaded?.notificationsByUser.u_2?.[0]?.read).toBe(true);
     expect(loaded?.likesByUser.u_1).toEqual(['v_1']);
+  });
+
+  it('toggles likes and follows without wiping messages', async () => {
+    opInsertConversation(dataDir, {
+      id: 'c_1',
+      userAId: 'u_1',
+      userBId: 'u_2',
+      messages: [],
+      lastReadAtByUser: { u_1: 1 },
+      updatedAt: 1,
+    });
+    opAppendMessage(
+      dataDir,
+      {
+        id: 'm_1',
+        conversationId: 'c_1',
+        senderId: 'u_1',
+        text: 'keep me',
+        createdAt: 2,
+      },
+      'u_1',
+      2,
+      ['m_1']
+    );
+
+    opToggleLike(dataDir, 'u_2', 'v_1', true, 2, {
+      id: 'n_like',
+      userId: 'u_1',
+      type: 'like',
+      actorId: 'u_2',
+      actorUsername: 'bob',
+      actorAvatar: '/b.png',
+      videoId: 'v_1',
+      read: false,
+      createdAt: 3,
+    });
+    opToggleFollow(dataDir, 'u_2', 'u_1', true, {
+      id: 'n_follow',
+      userId: 'u_1',
+      type: 'follow',
+      actorId: 'u_2',
+      actorUsername: 'bob',
+      actorAvatar: '/b.png',
+      read: false,
+      createdAt: 4,
+    });
+    opAddComment(
+      dataDir,
+      'v_1',
+      {
+        id: 'cm_1',
+        userId: 'u_2',
+        username: 'bob',
+        userAvatar: '/b.png',
+        text: 'nice',
+        timestamp: 5,
+        likes: 0,
+      },
+      1,
+      {
+        id: 'n_comment',
+        userId: 'u_1',
+        type: 'comment',
+        actorId: 'u_2',
+        actorUsername: 'bob',
+        actorAvatar: '/b.png',
+        videoId: 'v_1',
+        text: 'nice',
+        read: false,
+        createdAt: 5,
+      }
+    );
+
+    expect(countTableRows(dataDir, 'messages')).toBe(1);
+    expect(countTableRows(dataDir, 'likes')).toBe(2);
+    expect(countTableRows(dataDir, 'follows')).toBe(1);
+    expect(countTableRows(dataDir, 'comments')).toBe(1);
+
+    const { readSqliteSnapshot } = await import('@/lib/db/sqliteBackend');
+    const loaded = readSqliteSnapshot(dataDir);
+    expect(loaded?.conversations[0]?.messages[0]?.text).toBe('keep me');
+    expect(loaded?.videos[0]?.stats.likes).toBe(2);
+    expect(loaded?.videos[0]?.stats.comments).toBe(1);
+    expect(loaded?.notificationsByUser.u_1?.map((n) => n.type).sort()).toEqual(
+      ['comment', 'follow', 'like']
+    );
   });
 });

@@ -1,8 +1,13 @@
 /**
  * Incremental SQLite writes for hot paths (experimental).
- * Avoids full DELETE+reinsert snapshot on every DM / notification-read.
+ * Avoids full DELETE+reinsert snapshot on engagement / DM / notification-read.
  */
-import type { ConversationRecord, DirectMessage } from '@/lib/db/feedStore';
+import type {
+  ConversationRecord,
+  DirectMessage,
+  NotificationItem,
+} from '@/lib/db/feedStore';
+import type { Comment } from '@/types/video';
 import { openSqliteStore } from '@/lib/db/sqliteBackend';
 import { ensureRelationalSchema } from '@/lib/db/sqliteRelStore';
 
@@ -23,15 +28,56 @@ function stampUpdatedAt(db: SqliteDatabase) {
   ).run(String(Date.now()));
 }
 
+function withTxn(dataDir: string, fn: (db: SqliteDatabase) => void) {
+  const db = openSqliteStore(dataDir);
+  ensureRelationalSchema(db);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    fn(db);
+    stampUpdatedAt(db);
+    db.exec('COMMIT');
+  } catch (error) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // ignore
+    }
+    throw error;
+  }
+}
+
+function insertNotificationRow(db: SqliteDatabase, item: NotificationItem) {
+  db.prepare(
+    `UPDATE notifications SET position = position + 1 WHERE user_id = ?`
+  ).run(item.userId);
+  db.prepare(
+    `INSERT INTO notifications (
+      id, user_id, type, actor_id, actor_username, actor_avatar,
+      video_id, text, read, created_at, position
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+  ).run(
+    item.id,
+    item.userId,
+    item.type,
+    item.actorId,
+    item.actorUsername,
+    item.actorAvatar,
+    item.videoId ?? null,
+    item.text ?? null,
+    item.read ? 1 : 0,
+    item.createdAt
+  );
+  db.prepare(
+    `DELETE FROM notifications WHERE user_id = ? AND position >= 100`
+  ).run(item.userId);
+}
+
 /** Insert a new 1:1 conversation + initial read cursor. */
 export function opInsertConversation(
   dataDir: string,
   conv: ConversationRecord
 ) {
-  const db = openSqliteStore(dataDir);
-  ensureRelationalSchema(db);
-  db.exec('BEGIN IMMEDIATE');
-  try {
+  withTxn(dataDir, (db) => {
     db.prepare(
       `INSERT INTO conversations (id, user_a_id, user_b_id, updated_at)
        VALUES (?, ?, ?, ?)`
@@ -48,17 +94,7 @@ export function opInsertConversation(
     )) {
       insertRead.run(conv.id, userId, lastReadAt);
     }
-
-    stampUpdatedAt(db);
-    db.exec('COMMIT');
-  } catch (error) {
-    try {
-      db.exec('ROLLBACK');
-    } catch {
-      // ignore
-    }
-    throw error;
-  }
+  });
 }
 
 /** Append one message; sync conversation updated_at + sender read cursor. */
@@ -69,10 +105,7 @@ export function opAppendMessage(
   updatedAt: number,
   keptMessageIds?: string[]
 ) {
-  const db = openSqliteStore(dataDir);
-  ensureRelationalSchema(db);
-  db.exec('BEGIN IMMEDIATE');
-  try {
+  withTxn(dataDir, (db) => {
     const countRow = db
       .prepare(
         `SELECT COUNT(*) AS c FROM messages WHERE conversation_id = ?`
@@ -113,17 +146,7 @@ export function opAppendMessage(
            AND id NOT IN (${placeholders})`
       ).run(message.conversationId, ...keptMessageIds);
     }
-
-    stampUpdatedAt(db);
-    db.exec('COMMIT');
-  } catch (error) {
-    try {
-      db.exec('ROLLBACK');
-    } catch {
-      // ignore
-    }
-    throw error;
-  }
+  });
 }
 
 export function opMarkConversationRead(
@@ -164,15 +187,165 @@ export function opMarkNotificationsRead(
   stampUpdatedAt(db);
 }
 
+export function opInsertNotification(
+  dataDir: string,
+  item: NotificationItem
+) {
+  withTxn(dataDir, (db) => {
+    insertNotificationRow(db, item);
+  });
+}
+
+export function opToggleLike(
+  dataDir: string,
+  userId: string,
+  videoId: string,
+  liked: boolean,
+  likesCount: number,
+  notification?: NotificationItem | null
+) {
+  withTxn(dataDir, (db) => {
+    if (liked) {
+      db.prepare(
+        `INSERT OR IGNORE INTO likes (user_id, video_id) VALUES (?, ?)`
+      ).run(userId, videoId);
+    } else {
+      db.prepare(`DELETE FROM likes WHERE user_id = ? AND video_id = ?`).run(
+        userId,
+        videoId
+      );
+    }
+    db.prepare(`UPDATE videos SET likes = ? WHERE id = ?`).run(
+      likesCount,
+      videoId
+    );
+    if (notification) insertNotificationRow(db, notification);
+  });
+}
+
+export function opToggleFollow(
+  dataDir: string,
+  followerId: string,
+  creatorId: string,
+  following: boolean,
+  notification?: NotificationItem | null
+) {
+  withTxn(dataDir, (db) => {
+    if (following) {
+      db.prepare(
+        `INSERT OR IGNORE INTO follows (follower_id, creator_id) VALUES (?, ?)`
+      ).run(followerId, creatorId);
+    } else {
+      db.prepare(
+        `DELETE FROM follows WHERE follower_id = ? AND creator_id = ?`
+      ).run(followerId, creatorId);
+    }
+    if (notification) insertNotificationRow(db, notification);
+  });
+}
+
+export function opToggleSave(
+  dataDir: string,
+  userId: string,
+  savedVideoIds: string[]
+) {
+  withTxn(dataDir, (db) => {
+    db.prepare(`DELETE FROM saves WHERE user_id = ?`).run(userId);
+    const insert = db.prepare(
+      `INSERT INTO saves (user_id, video_id, position) VALUES (?, ?, ?)`
+    );
+    savedVideoIds.forEach((id, position) => insert.run(userId, id, position));
+  });
+}
+
+export function opAddComment(
+  dataDir: string,
+  videoId: string,
+  comment: Comment,
+  commentsCount: number,
+  notification?: NotificationItem | null
+) {
+  withTxn(dataDir, (db) => {
+    db.prepare(
+      `UPDATE comments SET position = position + 1 WHERE video_id = ?`
+    ).run(videoId);
+    db.prepare(
+      `INSERT INTO comments (
+        id, video_id, user_id, username, user_avatar, text, timestamp, likes, parent_id, position
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+    ).run(
+      comment.id,
+      videoId,
+      comment.userId,
+      comment.username,
+      comment.userAvatar,
+      comment.text,
+      comment.timestamp,
+      comment.likes,
+      comment.parentId ?? null
+    );
+    db.prepare(`UPDATE videos SET comments = ? WHERE id = ?`).run(
+      commentsCount,
+      videoId
+    );
+    if (notification) insertNotificationRow(db, notification);
+  });
+}
+
+export function opRecordSignal(
+  dataDir: string,
+  videoId: string,
+  plays: number,
+  completes: number,
+  userId?: string | null,
+  playedVideoIds?: string[]
+) {
+  withTxn(dataDir, (db) => {
+    db.prepare(
+      `INSERT INTO signals (video_id, plays, completes) VALUES (?, ?, ?)
+       ON CONFLICT(video_id) DO UPDATE SET
+         plays = excluded.plays,
+         completes = excluded.completes`
+    ).run(videoId, plays, completes);
+
+    if (userId && playedVideoIds) {
+      db.prepare(`DELETE FROM plays WHERE user_id = ?`).run(userId);
+      const insert = db.prepare(
+        `INSERT INTO plays (user_id, video_id) VALUES (?, ?)`
+      );
+      for (const id of playedVideoIds) insert.run(userId, id);
+    }
+  });
+}
+
+export function opRecordShare(
+  dataDir: string,
+  videoId: string,
+  shares: number
+) {
+  const db = openSqliteStore(dataDir);
+  ensureRelationalSchema(db);
+  db.prepare(`UPDATE videos SET shares = ? WHERE id = ?`).run(
+    shares,
+    videoId
+  );
+  stampUpdatedAt(db);
+}
+
 /** Test helper: count rows without loading the full store. */
 export function countTableRows(dataDir: string, table: string): number {
   const allowed = new Set([
     'users',
     'videos',
     'likes',
+    'saves',
+    'follows',
+    'comments',
     'messages',
     'notifications',
     'conversations',
+    'signals',
+    'plays',
   ]);
   if (!allowed.has(table)) {
     throw new Error(`table not allowed: ${table}`);

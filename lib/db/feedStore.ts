@@ -4,8 +4,8 @@
  * Likes are per-user; comments carry the acting user's identity.
  *
  * Persistence (experimental): normalized SQLite tables via lib/db/sqliteBackend.ts
- * (WAL; migrates legacy store.json / v1 JSON blob). Hot paths (DMs, notification
- * mark-read) use incremental SQL ops; other mutations still rewrite snapshots.
+ * (WAL; migrates legacy store.json / v1 JSON blob). Hot engagement / DM paths use
+ * incremental SQL ops; upload/auth/video CRUD still rewrite snapshots.
  * In-memory document API unchanged.
  */
 
@@ -21,10 +21,16 @@ import {
   writeSqliteSnapshot,
 } from '@/lib/db/sqliteBackend';
 import {
+  opAddComment,
   opAppendMessage,
   opInsertConversation,
   opMarkConversationRead,
   opMarkNotificationsRead,
+  opRecordShare,
+  opRecordSignal,
+  opToggleFollow,
+  opToggleLike,
+  opToggleSave,
 } from '@/lib/db/sqliteOps';
 
 export interface PublicUser {
@@ -153,8 +159,8 @@ function pushNotification(
     videoId?: string;
     text?: string;
   }
-) {
-  if (!recipientId || recipientId === input.actorId) return;
+): NotificationItem | null {
+  if (!recipientId || recipientId === input.actorId) return null;
   const item: NotificationItem = {
     id: newId('n'),
     userId: recipientId,
@@ -169,6 +175,7 @@ function pushNotification(
   };
   const existing = store.notificationsByUser[recipientId] ?? [];
   store.notificationsByUser[recipientId] = [item, ...existing].slice(0, 100);
+  return item;
 }
 
 function actorFromStore(store: FeedStoreData, userId: string) {
@@ -606,17 +613,22 @@ export async function toggleFollow(
     set.add(creatorId);
   }
   store.follows[followerId] = Array.from(set);
+  let notification: NotificationItem | null = null;
   if (!currentlyFollowing) {
     const actor = actorFromStore(store, followerId);
     if (actor) {
-      pushNotification(store, creatorId, {
+      notification = pushNotification(store, creatorId, {
         type: 'follow',
         ...actor,
       });
     }
   }
-  await persist(store, dataDir);
-  return { ok: true, following: !currentlyFollowing };
+  const following = !currentlyFollowing;
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opToggleFollow(dir, followerId, creatorId, following, notification);
+  });
+  return { ok: true, following };
 }
 
 export interface CreatorProfile {
@@ -708,7 +720,19 @@ export async function recordSignal(
     store.playsByUser[userId] = Array.from(played).slice(-200);
   }
 
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  const playedVideoIds =
+    userId && type === 'play' ? store.playsByUser[userId] : undefined;
+  await persistIncremental(store, dir, () => {
+    opRecordSignal(
+      dir,
+      videoId,
+      current.plays,
+      current.completes,
+      userId && type === 'play' ? userId : null,
+      playedVideoIds
+    );
+  });
   return { ok: true };
 }
 
@@ -733,19 +757,24 @@ export async function toggleLike(
     video.stats.likes += 1;
   }
   store.likesByUser[userId] = Array.from(likedSet);
+  let notification: NotificationItem | null = null;
   if (!currentlyLiked) {
     const actor = actorFromStore(store, userId);
     if (actor) {
-      pushNotification(store, video.creator.id, {
+      notification = pushNotification(store, video.creator.id, {
         type: 'like',
         ...actor,
         videoId,
       });
     }
   }
-  await persist(store, dataDir);
+  const liked = !currentlyLiked;
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opToggleLike(dir, userId, videoId, liked, video.stats.likes, notification);
+  });
 
-  return { ok: true, liked: !currentlyLiked, likes: video.stats.likes };
+  return { ok: true, liked, likes: video.stats.likes };
 }
 
 export async function recordShare(
@@ -758,7 +787,10 @@ export async function recordShare(
     return { ok: false, error: 'Video not found' };
   }
   video.stats.shares = (video.stats.shares ?? 0) + 1;
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opRecordShare(dir, videoId, video.stats.shares);
+  });
   return { ok: true, shares: video.stats.shares };
 }
 
@@ -780,9 +812,13 @@ export async function toggleSave(
     savedSet.add(videoId);
   }
   store.savesByUser[userId] = Array.from(savedSet);
-  await persist(store, dataDir);
+  const saved = !currentlySaved;
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opToggleSave(dir, userId, store.savesByUser[userId] ?? []);
+  });
 
-  return { ok: true, saved: !currentlySaved };
+  return { ok: true, saved };
 }
 
 export async function listComments(
@@ -874,7 +910,7 @@ export async function addComment(
   }
   store.comments[videoId] = [comment, ...store.comments[videoId]];
   video.stats.comments += 1;
-  pushNotification(store, video.creator.id, {
+  const notification = pushNotification(store, video.creator.id, {
     type: 'comment',
     actorId: user.id,
     actorUsername: user.username,
@@ -882,7 +918,16 @@ export async function addComment(
     videoId,
     text: trimmed.slice(0, 80),
   });
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opAddComment(
+      dir,
+      videoId,
+      comment,
+      video.stats.comments,
+      notification
+    );
+  });
 
   return comment;
 }

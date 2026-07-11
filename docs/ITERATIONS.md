@@ -272,7 +272,17 @@
   - `feedStore` 对上述热路径走 `persistIncremental`（仍串行化 writeChain）；其它变更仍全量快照
   - 回归：发私信后 likes 行数不变
 - **结果**：提交：`1a48de3`；`npm test` 68 通过。
-- **后续**：点赞/评论/关注等也可迁到按操作写入；确认后可合 main；WebSocket 仍可选。
+- **后续**：点赞/评论/关注等迁到按操作写入；确认后可合 main；WebSocket 仍可选。
+
+### 2026-07-11 — 实验：互动热路径按操作 SQL 写入
+
+- **问题**：点赞/评论/关注/收藏/播放信号仍整库重写，高频互动浪费大。
+- **方法**（同实验分支）：
+  - 扩展 `sqliteOps`：`opToggleLike` / `opToggleFollow` / `opToggleSave` / `opAddComment` / `opRecordSignal` / `opRecordShare`（可附带通知插入）
+  - `feedStore` 上述路径全部走 `persistIncremental`
+  - 回归：互动后既有私信行不被抹掉
+- **结果**：待提交后回填。
+- **后续**：上传/鉴权等低频路径可仍用快照；确认后可合 main；WebSocket/SSE 仍可选。
 
 ---
 
