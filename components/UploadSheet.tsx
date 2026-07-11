@@ -62,13 +62,13 @@ export function UploadSheet({ open, onClose }: UploadSheetProps) {
     <>
       <button
         type="button"
-        className="fixed inset-0 z-40 bg-black/50"
+        className="absolute inset-0 z-40 bg-black/50"
         aria-label="Close upload"
         onClick={onClose}
       />
       <form
         onSubmit={onSubmit}
-        className="fixed bottom-20 left-1/2 z-50 w-[min(100%-2rem,24rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-zinc-900 p-4 text-white shadow-xl"
+        className="absolute bottom-20 left-1/2 z-50 w-[min(100%-2rem,22rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-zinc-900 p-4 text-white shadow-xl"
       >
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Upload</h2>

@@ -155,7 +155,7 @@ export function CommentsDrawer({
 
   const renderCommentBody = (comment: Comment, isReply = false) => (
     <div className={`flex gap-3 ${isReply ? 'mt-3' : ''}`}>
-      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden">
+      <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-zinc-700">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={comment.userAvatar || '/avatars/default.png'}
@@ -163,18 +163,20 @@ export function CommentsDrawer({
           className="h-full w-full object-cover"
         />
       </div>
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="font-semibold text-sm">{comment.username}</span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-sm font-semibold text-white">
+            {comment.username}
+          </span>
+          <span className="text-xs text-white/40">
             {formatTimestamp(comment.timestamp)}
           </span>
         </div>
-        <p className="text-sm mt-1">{comment.text}</p>
+        <p className="mt-1 text-sm text-white/90">{comment.text}</p>
         {!isReply && (
           <button
             type="button"
-            className="mt-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="mt-1 text-xs font-medium text-white/45 hover:text-white/80"
             onClick={() => setReplyTo(comment)}
           >
             Reply
@@ -190,53 +192,48 @@ export function CommentsDrawer({
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40 md:hidden"
+      <button
+        type="button"
+        className="absolute inset-0 z-40 bg-black/50"
+        aria-label="Close comments"
         onClick={onClose}
       />
 
-      {/* Drawer */}
       <div
-        className={`fixed bottom-0 left-0 right-0 md:right-0 md:left-auto md:top-0 md:bottom-0 md:w-96 bg-white dark:bg-gray-900 z-50 flex flex-col transition-transform duration-300 md:h-full md:max-h-full ${
-          isOpen
-            ? 'translate-y-0 md:translate-x-0'
-            : 'translate-y-full md:translate-y-0 md:translate-x-full'
-        }`}
-        style={{ maxHeight: '85vh', height: 'auto' }}
+        className="absolute bottom-14 left-0 right-0 z-50 flex max-h-[70%] flex-col rounded-t-2xl border-t border-white/10 bg-zinc-950 text-white shadow-2xl"
+        role="dialog"
+        aria-label="Comments"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <h2 className="text-base font-semibold">
             Comments {total > 0 && `(${formatNumber(total)})`}
           </h2>
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
+            type="button"
             onClick={onClose}
+            className="rounded-full p-1.5 hover:bg-white/10"
             aria-label="Close comments"
           >
-            <X className="w-5 h-5" />
-          </Button>
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        {/* Comments List */}
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 px-4 py-3">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-white" />
             </div>
           ) : comments.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="py-8 text-center text-sm text-white/45">
               No comments yet. Be the first!
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-2">
               {comments.map((comment) => (
                 <div key={comment.id}>
                   {renderCommentBody(comment)}
                   {(comment.replies?.length ?? 0) > 0 && (
-                    <div className="ml-8 border-l border-gray-200 dark:border-gray-700 pl-3">
+                    <div className="ml-8 border-l border-white/10 pl-3">
                       {comment.replies!.map((reply) => (
                         <div key={reply.id}>
                           {renderCommentBody(reply, true)}
@@ -250,19 +247,18 @@ export function CommentsDrawer({
           )}
         </ScrollArea>
 
-        {/* Comment Input */}
         <form
           onSubmit={handleSubmit}
-          className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2"
+          className="space-y-2 border-t border-white/10 p-3"
         >
           {replyTo && (
-            <div className="flex items-center justify-between rounded-md bg-muted px-2 py-1.5 text-xs">
+            <div className="flex items-center justify-between rounded-md bg-white/5 px-2 py-1.5 text-xs text-white/70">
               <span>
                 Replying to <strong>@{replyTo.username}</strong>
               </span>
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground"
+                className="text-white/50 hover:text-white"
                 onClick={() => setReplyTo(null)}
                 aria-label="Cancel reply"
               >
@@ -282,14 +278,15 @@ export function CommentsDrawer({
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               disabled={sending}
-              className="flex-1"
+              className="flex-1 border-white/10 bg-white/5 text-white placeholder:text-white/35"
             />
             <Button
               type="submit"
               size="icon"
               disabled={!newComment.trim() || sending}
+              className="bg-white text-black hover:bg-white/90"
             >
-              <Send className="w-4 h-4" />
+              <Send className="h-4 w-4" />
             </Button>
           </div>
         </form>

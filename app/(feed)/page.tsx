@@ -84,7 +84,7 @@ function FeedPageContent() {
     const container = containerRef.current;
     if (!container) return;
 
-    const targetScroll = index * window.innerHeight;
+    const targetScroll = index * container.clientHeight;
     container.scrollTo({
       top: targetScroll,
       behavior,
@@ -137,7 +137,8 @@ function FeedPageContent() {
 
     const handleScroll = () => {
       const scrollTop = container.scrollTop;
-      const newIndex = Math.round(scrollTop / window.innerHeight);
+      const pageHeight = container.clientHeight || 1;
+      const newIndex = Math.round(scrollTop / pageHeight);
       
       if (newIndex !== currentIndex) {
         if (newIndex > currentIndex) {
@@ -212,7 +213,7 @@ function FeedPageContent() {
 
   if (isLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-black">
+      <div className="h-full flex items-center justify-center bg-black">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
@@ -225,14 +226,14 @@ function FeedPageContent() {
       {/* Feed Container */}
       <div
         ref={containerRef}
-        className="h-screen overflow-y-scroll snap-y snap-mandatory no-scrollbar"
+        className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar"
         style={{ scrollSnapType: 'y mandatory' }}
       >
         {videos.length === 0 ? (
           feedMode === 'following' ? (
             <FollowingEmptyState onGoForYou={() => setFeedMode('foryou')} />
           ) : (
-            <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
+            <div className="h-full flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
               <p className="text-lg font-semibold">No videos</p>
               <p className="text-sm text-white/60">
                 Upload a video to get started.
@@ -252,7 +253,7 @@ function FeedPageContent() {
 
         {/* Loading indicator */}
         {isFetchingNextPage && (
-          <div className="h-screen flex items-center justify-center bg-black">
+          <div className="h-full flex items-center justify-center bg-black">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
           </div>
         )}
@@ -313,7 +314,7 @@ export default function FeedPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-screen w-full flex items-center justify-center bg-black text-white">
+        <div className="h-full w-full flex items-center justify-center bg-black text-white">
           Loading...
         </div>
       }

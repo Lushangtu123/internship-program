@@ -57,10 +57,10 @@ Completed work lands on `main`; experimental ideas stay on branches.
 
 ## UI polish — feed chrome ✅
 
-- Top feed chrome no longer hosts Saved / upload / bell clutter
 - Bottom nav: **Home | Following | Create | Inbox | Me**
 - Own profile hosts **Videos | Saved**
-- Upload + inbox open as sheets above the nav
+- Upload + inbox open as dark sheets above the nav
+- Desktop: centered phone frame (`max-w-md`); comments drawer matches dark feed
 
 ## Step 9 — Notifications ✅
 

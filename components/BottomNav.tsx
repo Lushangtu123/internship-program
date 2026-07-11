@@ -39,11 +39,10 @@ export function BottomNav({
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/90 pb-safe backdrop-blur-md"
+      className="absolute bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
       aria-label="Main"
     >
-      <div className="mx-auto flex h-14 max-w-lg items-stretch px-1">
-        <button type="button" onClick={onHome} className={itemClass('home')}>
+      <div className="flex h-14 items-stretch px-1">        <button type="button" onClick={onHome} className={itemClass('home')}>
           <Home className="h-5 w-5" strokeWidth={active === 'home' ? 2.5 : 2} />
           Home
         </button>

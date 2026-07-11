@@ -68,11 +68,11 @@ export function NotificationSheet({ open, onClose }: NotificationSheetProps) {
     <>
       <button
         type="button"
-        className="fixed inset-0 z-40 bg-black/50"
+        className="absolute inset-0 z-40 bg-black/50"
         aria-label="Close notifications"
         onClick={onClose}
       />
-      <div className="fixed bottom-20 left-1/2 z-50 flex max-h-[70vh] w-[min(100%-2rem,24rem)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-white shadow-xl">
+      <div className="absolute bottom-20 left-1/2 z-50 flex max-h-[70vh] w-[min(100%-2rem,22rem)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-white shadow-xl">
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <h2 className="text-sm font-semibold">Inbox</h2>
           <button
