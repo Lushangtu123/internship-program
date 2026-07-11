@@ -66,7 +66,7 @@
   - `notificationTargetHref`：like/comment → `/?v=`；follow → `/creator/[actorId]`
   - `NotificationSheet` 行改为 `Link`，点击关闭 sheet
   - Feed 收到 `?v=` 时强制切回 For You 并关掉 sheet，保证从 Following/Inbox 也能跳到目标视频
-- **结果**：Inbox 可导航到对应内容。提交：见本分支
+- **结果**：Inbox 可导航到对应内容。提交：`cdeac13`
 - **后续**：评论类通知可再带上自动打开评论抽屉；评论数角标同步。
 
 ---
