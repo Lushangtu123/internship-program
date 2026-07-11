@@ -6,6 +6,7 @@ import { VideoCard } from '@/components/VideoCard';
 import { CommentsDrawer } from '@/components/CommentsDrawer';
 import { DebugPanel } from '@/components/DebugPanel';
 import { AuthBar } from '@/components/AuthBar';
+import { UploadButton } from '@/components/UploadButton';
 import { useKeyboardShortcuts } from '@/lib/keyboard';
 import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
@@ -153,6 +154,7 @@ function FeedPageContent() {
   return (
     <>
       <AuthBar />
+      <UploadButton />
 
       {/* Feed Container */}
       <div

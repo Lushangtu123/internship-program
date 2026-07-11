@@ -342,3 +342,41 @@ export async function addComment(
 
   return comment;
 }
+
+export async function createVideo(
+  input: {
+    src: string;
+    poster: string;
+    duration: number;
+    caption: string;
+    user: PublicUser;
+    musicTitle?: string;
+  },
+  dataDir?: string
+): Promise<Video> {
+  const store = await ensureStore(dataDir);
+  const video: Video = {
+    id: newId('v'),
+    src: input.src,
+    poster: input.poster,
+    duration: input.duration,
+    creator: {
+      id: input.user.id,
+      handle: `@${input.user.username}`,
+      avatar: input.user.avatar,
+      name: input.user.username,
+    },
+    caption: input.caption.trim() || 'Untitled upload',
+    music: {
+      title: input.musicTitle ?? 'Original Sound',
+      artist: input.user.username,
+    },
+    stats: { likes: 0, comments: 0, shares: 0 },
+    liked: false,
+  };
+
+  store.videos = [video, ...store.videos];
+  store.comments[video.id] = [];
+  await persist(store, dataDir);
+  return video;
+}

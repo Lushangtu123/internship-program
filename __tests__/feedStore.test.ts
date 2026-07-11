@@ -5,6 +5,7 @@ import path from 'path';
 import {
   addComment,
   createGuestUser,
+  createVideo,
   listComments,
   listVideos,
   loginUser,
@@ -91,5 +92,23 @@ describe('feedStore identity + persistence', () => {
     const guest = await createGuestUser(dataDir);
     const result = await addComment('v_001', '   ', guest.user, dataDir);
     expect(result).toMatchObject({ status: 400 });
+  });
+
+  it('prepends an uploaded video for the acting user', async () => {
+    const guest = await createGuestUser(dataDir);
+    const video = await createVideo(
+      {
+        src: '/uploads/videos/demo.webm',
+        poster: '/uploads/posters/demo.jpg',
+        duration: 3.5,
+        caption: 'my upload',
+        user: guest.user,
+      },
+      dataDir
+    );
+    expect(video.creator.handle).toBe(`@${guest.user.username}`);
+    const page = await listVideos(null, 1, guest.user.id, dataDir);
+    expect(page.items[0].id).toBe(video.id);
+    expect(page.items[0].caption).toBe('my upload');
   });
 });

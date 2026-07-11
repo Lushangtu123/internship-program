@@ -138,7 +138,7 @@ internship-program/
 | `POST` | `/api/videos/:id/comments` | Post a comment |
 | `POST` | `/api/telemetry` | QoE telemetry |
 
-APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Guests get an httpOnly session cookie automatically; register/login upgrades the identity. Likes are per-user. Upload and HLS are intentionally out of scope until later roadmap steps.
+APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Guests get an httpOnly session cookie automatically; register/login upgrades the identity. Likes are per-user. Users can upload videos locally via `POST /api/videos/upload` (stored under `public/uploads/`, poster via ffmpeg). HLS/CDN is the next roadmap step.
 
 ## Configuration
 

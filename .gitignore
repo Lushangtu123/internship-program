@@ -41,3 +41,9 @@ next-env.d.ts
 # local persistent feed store (Step 1)
 /data/store.json
 
+# user uploads (Step 3)
+/public/uploads/videos/**
+/public/uploads/posters/**
+!/public/uploads/videos/.gitkeep
+!/public/uploads/posters/.gitkeep
+
