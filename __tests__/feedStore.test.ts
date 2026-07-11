@@ -6,6 +6,7 @@ import {
   addComment,
   createGuestUser,
   createVideo,
+  getCreatorProfile,
   listComments,
   listVideos,
   loginUser,
@@ -171,5 +172,25 @@ describe('feedStore identity + persistence', () => {
     const forYou = await listVideos(null, 50, guest.user.id, dataDir, 'foryou');
     const sample = forYou.items.find((video) => video.creator.id === 'u_1');
     expect(sample?.isFollowing).toBe(true);
+  });
+
+  it('returns creator profile with videos and follower stats', async () => {
+    const guest = await createGuestUser(dataDir);
+    await toggleFollow(guest.user.id, 'u_1', dataDir);
+
+    const profile = await getCreatorProfile('u_1', guest.user.id, dataDir);
+    expect('error' in profile).toBe(false);
+    if ('error' in profile) return;
+
+    expect(profile.creator.id).toBe('u_1');
+    expect(profile.isFollowing).toBe(true);
+    expect(profile.stats.followers).toBeGreaterThanOrEqual(1);
+    expect(profile.videos.length).toBeGreaterThan(0);
+    expect(profile.videos.every((v) => v.creator.id === 'u_1')).toBe(true);
+  });
+
+  it('returns not found for unknown creator', async () => {
+    const result = await getCreatorProfile('missing', null, dataDir);
+    expect(result).toEqual({ error: 'Creator not found' });
   });
 });

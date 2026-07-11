@@ -132,13 +132,15 @@ internship-program/
 
 | Method | Path | Description |
 |------|------|------|
-| `GET` | `/api/videos?limit=5&cursor=` | Video list (cursor pagination) |
+| `GET` | `/api/videos?limit=5&cursor=&feed=` | Video list (`foryou` / `following`) |
 | `POST` | `/api/videos/:id/like` | Like a video |
 | `GET` | `/api/videos/:id/comments` | List comments |
 | `POST` | `/api/videos/:id/comments` | Post a comment |
+| `POST` | `/api/follow` | Toggle follow for a creator |
+| `GET` | `/api/creators/:id` | Creator profile + videos |
 | `POST` | `/api/telemetry` | QoE telemetry |
 
-APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Guests get an httpOnly session cookie automatically; register/login upgrades the identity. Likes are per-user. Users can upload videos via `POST /api/videos/upload` — files are stored under `public/uploads/`, packaged to **HLS** (with progressive fallback), and played via native HLS or `hls.js`. The **For You** feed is ranked by engagement + freshness; **Following** shows creators you follow.
+APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Guests get an httpOnly session cookie automatically; register/login upgrades the identity. Likes are per-user. Users can upload videos via `POST /api/videos/upload` — files are stored under `public/uploads/`, packaged to **HLS** (with progressive fallback), and played via native HLS or `hls.js`. The **For You** feed is ranked by engagement + freshness; **Following** shows creators you follow. Tap a creator avatar or handle to open `/creator/[id]`.
 
 ## Configuration
 

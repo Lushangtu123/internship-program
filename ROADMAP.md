@@ -43,9 +43,15 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Top tabs: **For You** / **Following**
 - Follow button on each video card
 
+## Step 7 — Creator profiles ✅
+
+- `GET /api/creators/[id]` returns profile, stats, and that creator’s videos
+- Profile page at `/creator/[id]` with Follow + video grid
+- Avatar / handle on each card links to the profile
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
 - Real object storage + CDN origin
-- Creator profiles and notifications
+- Notifications
 - Messaging / inbox

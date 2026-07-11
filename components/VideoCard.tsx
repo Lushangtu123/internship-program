@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Play, Pause, Volume2, VolumeX, MoreVertical } from 'lucide-react';
@@ -311,18 +312,27 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
           <div className="flex-1 min-w-0 space-y-3">
             {/* Creator Info */}
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden flex-shrink-0">
+              <Link
+                href={`/creator/${video.creator.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden flex-shrink-0"
+                aria-label={`Open ${video.creator.handle} profile`}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={video.creator.avatar}
                   alt=""
                   className="w-full h-full object-cover"
                 />
-              </div>
+              </Link>
               <div className="flex items-center gap-2 min-w-0">
-                <span className="font-semibold text-white truncate">
+                <Link
+                  href={`/creator/${video.creator.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-semibold text-white truncate hover:underline"
+                >
                   {video.creator.handle}
-                </span>
+                </Link>
                 <button
                   type="button"
                   onClick={handleFollow}

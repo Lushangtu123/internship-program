@@ -321,6 +321,66 @@ export async function toggleFollow(
   return { ok: true, following: !currentlyFollowing };
 }
 
+export interface CreatorProfile {
+  creator: {
+    id: string;
+    handle: string;
+    avatar: string;
+    name?: string;
+  };
+  stats: {
+    videos: number;
+    followers: number;
+    likes: number;
+  };
+  isFollowing: boolean;
+  videos: Video[];
+}
+
+export async function getCreatorProfile(
+  creatorId: string,
+  viewerId?: string | null,
+  dataDir?: string
+): Promise<CreatorProfile | { error: string }> {
+  const store = await ensureStore(dataDir);
+  const creatorVideos = store.videos.filter((v) => v.creator.id === creatorId);
+
+  let creator: CreatorProfile['creator'] | null = null;
+  if (creatorVideos.length > 0) {
+    creator = creatorVideos[0].creator;
+  } else {
+    const user = store.users.find((u) => u.id === creatorId);
+    if (!user) return { error: 'Creator not found' };
+    creator = {
+      id: user.id,
+      handle: `@${user.username}`,
+      avatar: user.avatar,
+      name: user.username,
+    };
+  }
+
+  const followers = Object.values(store.follows).filter((ids) =>
+    ids.includes(creatorId)
+  ).length;
+  const likes = creatorVideos.reduce((sum, v) => sum + v.stats.likes, 0);
+  const ranked = rankVideos(creatorVideos, store.signals).map((v) =>
+    withUserContext(v, viewerId ?? null, store.likesByUser, store.follows)
+  );
+
+  return {
+    creator,
+    stats: {
+      videos: creatorVideos.length,
+      followers,
+      likes,
+    },
+    isFollowing: viewerId
+      ? (store.follows[viewerId] ?? []).includes(creatorId)
+      : false,
+    videos: ranked,
+  };
+}
+
 export async function recordSignal(
   videoId: string,
   type: 'play' | 'complete',

@@ -92,6 +92,23 @@ export async function toggleFollowCreator(
   return data;
 }
 
+export async function fetchCreatorProfile(creatorId: string) {
+  const response = await apiFetch(`${API_BASE}/creators/${creatorId}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to load profile');
+  return data as {
+    creator: {
+      id: string;
+      handle: string;
+      avatar: string;
+      name?: string;
+    };
+    stats: { videos: number; followers: number; likes: number };
+    isFollowing: boolean;
+    videos: import('@/types/video').Video[];
+  };
+}
+
 export async function likeVideo(videoId: string): Promise<LikeResponse> {
   const response = await apiFetch(`${API_BASE}/videos/${videoId}/like`, {
     method: 'POST',
