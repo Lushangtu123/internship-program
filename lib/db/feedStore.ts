@@ -4,7 +4,9 @@
  * Likes are per-user; comments carry the acting user's identity.
  *
  * Persistence (experimental): normalized SQLite tables via lib/db/sqliteBackend.ts
- * (WAL; migrates legacy store.json / v1 JSON blob). In-memory document API unchanged.
+ * (WAL; migrates legacy store.json / v1 JSON blob). Hot paths (DMs, notification
+ * mark-read) use incremental SQL ops; other mutations still rewrite snapshots.
+ * In-memory document API unchanged.
  */
 
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
@@ -18,6 +20,12 @@ import {
   readSqliteSnapshot,
   writeSqliteSnapshot,
 } from '@/lib/db/sqliteBackend';
+import {
+  opAppendMessage,
+  opInsertConversation,
+  opMarkConversationRead,
+  opMarkNotificationsRead,
+} from '@/lib/db/sqliteOps';
 
 export interface PublicUser {
   id: string;
@@ -298,6 +306,21 @@ async function persist(data: FeedStoreData, dataDir = DEFAULT_DATA_DIR) {
   // Serialize writes so concurrent API handlers don't interleave snapshots.
   writeChain = writeChain.then(() => {
     writeSqliteSnapshot(dataDir, data);
+  });
+  await writeChain;
+}
+
+/** Keep memory cache warm and run an incremental SQL write on the chain. */
+async function persistIncremental(
+  data: FeedStoreData,
+  dataDir: string,
+  op: () => void
+) {
+  if (dataDir === DEFAULT_DATA_DIR) {
+    memoryCache = data;
+  }
+  writeChain = writeChain.then(() => {
+    op();
   });
   await writeChain;
 }
@@ -1055,7 +1078,9 @@ export async function markNotificationsRead(
   }
   if (changed) {
     store.notificationsByUser[userId] = list;
-    await persist(store, dataDir);
+    await persistIncremental(store, dataDir ?? DEFAULT_DATA_DIR, () => {
+      opMarkNotificationsRead(dataDir ?? DEFAULT_DATA_DIR, userId, ids);
+    });
   }
   const unreadCount = list.filter((n) => !n.read).length;
   return { ok: true, unreadCount };
@@ -1157,7 +1182,9 @@ export async function getOrCreateConversation(
       updatedAt: Date.now(),
     };
     store.conversations.push(conv);
-    await persist(store, dataDir);
+    await persistIncremental(store, dataDir ?? DEFAULT_DATA_DIR, () => {
+      opInsertConversation(dataDir ?? DEFAULT_DATA_DIR, conv!);
+    });
   }
 
   return {
@@ -1243,7 +1270,11 @@ export async function sendMessage(
   }
   conv.updatedAt = now;
   conv.lastReadAtByUser[userId] = now;
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  const keptIds = conv.messages.map((m) => m.id);
+  await persistIncremental(store, dir, () => {
+    opAppendMessage(dir, message, userId, now, keptIds);
+  });
   return { ok: true, message };
 }
 
@@ -1261,7 +1292,10 @@ export async function markConversationRead(
   const stamp = last?.createdAt ?? Date.now();
   if ((conv.lastReadAtByUser[userId] ?? 0) < stamp) {
     conv.lastReadAtByUser[userId] = stamp;
-    await persist(store, dataDir);
+    const dir = dataDir ?? DEFAULT_DATA_DIR;
+    await persistIncremental(store, dir, () => {
+      opMarkConversationRead(dir, conversationId, userId, stamp);
+    });
   }
   return { ok: true, unreadCount: unreadInConversation(conv, userId) };
 }

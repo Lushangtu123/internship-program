@@ -262,7 +262,17 @@
   - UI：Inbox **Activity | Messages**；`/inbox/c/[id]` 会话页；主页 **Message** 按钮；底栏未读 = 通知 + 私信
   - 规则：仅注册用户可发；游客引导登录；每会话最多 200 条；轮询刷新
 - **结果**：提交：`cc0e69e`；`npm test` 66 通过。
-- **后续**：确认后可合 main；WebSocket / 按操作 SQL 写入仍可选。
+- **后续**：按操作 SQL 写入；确认后可合 main；WebSocket 仍可选。
+
+### 2026-07-11 — 实验：热路径按操作 SQL 写入
+
+- **问题**：每次发私信 / 标已读仍整库 DELETE+重插，消息量大时浪费且易与其它表竞态。
+- **方法**（同实验分支）：
+  - 新增 `lib/db/sqliteOps.ts`：`opInsertConversation` / `opAppendMessage` / `opMarkConversationRead` / `opMarkNotificationsRead`
+  - `feedStore` 对上述热路径走 `persistIncremental`（仍串行化 writeChain）；其它变更仍全量快照
+  - 回归：发私信后 likes 行数不变
+- **结果**：待提交后回填。
+- **后续**：点赞/评论/关注等也可迁到按操作写入；确认后可合 main；WebSocket 仍可选。
 
 ---
 

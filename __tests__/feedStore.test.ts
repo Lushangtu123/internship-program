@@ -557,4 +557,51 @@ describe('feedStore identity + persistence', () => {
     );
     expect(again.ok && again.items[0]?.text).toBe('hello bob');
   });
+
+  it('keeps likes when messaging uses incremental SQL writes', async () => {
+    const aliceGuest = await createGuestUser(dataDir);
+    const bobGuest = await createGuestUser(dataDir);
+    const alice = await registerUser(
+      `alice_inc_${Date.now().toString(36)}`,
+      'password123',
+      dataDir,
+      aliceGuest.user.id
+    );
+    const bob = await registerUser(
+      `bob_inc_${Date.now().toString(36)}`,
+      'password123',
+      dataDir,
+      bobGuest.user.id
+    );
+    if (!('user' in alice) || !('user' in bob)) return;
+
+    await toggleLike('v_001', alice.user.id, dataDir);
+    const { countTableRows } = await import('@/lib/db/sqliteOps');
+    const likesBefore = countTableRows(dataDir, 'likes');
+    expect(likesBefore).toBeGreaterThan(0);
+
+    const opened = await getOrCreateConversation(
+      alice.user.id,
+      bob.user.id,
+      dataDir
+    );
+    if (!opened.ok) throw new Error('expected conversation');
+    await sendMessage(opened.conversation.id, alice.user.id, 'inc write', dataDir);
+
+    expect(countTableRows(dataDir, 'likes')).toBe(likesBefore);
+    expect(countTableRows(dataDir, 'messages')).toBeGreaterThan(0);
+
+    resetStoreCache(dataDir);
+    const forA = await listVideos(null, 50, alice.user.id, dataDir);
+    expect(forA.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
+    const thread = await listMessages(
+      opened.conversation.id,
+      bob.user.id,
+      50,
+      dataDir
+    );
+    expect(thread.ok && thread.items.some((m) => m.text === 'inc write')).toBe(
+      true
+    );
+  });
 });
