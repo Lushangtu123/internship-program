@@ -24,8 +24,10 @@ function FeedPageContent() {
   const [sheet, setSheet] = useState<'upload' | 'inbox' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef<string | null>(null);
+  const commentsDeepLinkHandledRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get('v');
+  const openCommentsFromLink = searchParams.get('c') === '1';
 
   const navActive: BottomNavTab =
     sheet === 'inbox'
@@ -47,6 +49,13 @@ function FeedPageContent() {
       setSheet(sheetParam);
     }
   }, [searchParams]);
+
+  // Inbox / share deep links land on For You and close sheets
+  useEffect(() => {
+    if (!deepLinkId) return;
+    setFeedMode('foryou');
+    setSheet(null);
+  }, [deepLinkId]);
 
   // Fetch videos with infinite scroll
   const {
@@ -70,6 +79,7 @@ function FeedPageContent() {
   useEffect(() => {
     setCurrentIndex(0);
     deepLinkHandledRef.current = null;
+    commentsDeepLinkHandledRef.current = null;
     containerRef.current?.scrollTo({ top: 0 });
   }, [feedMode]);
 
@@ -117,6 +127,28 @@ function FeedPageContent() {
     fetchNextPage,
     scrollToVideo,
   ]);
+
+  // Comment notifications: ?v=&c=1 opens the comments drawer after scroll
+  useEffect(() => {
+    if (!deepLinkId || !openCommentsFromLink) return;
+    if (deepLinkHandledRef.current !== deepLinkId) return;
+    if (commentsDeepLinkHandledRef.current === deepLinkId) return;
+
+    commentsDeepLinkHandledRef.current = deepLinkId;
+    setSelectedVideoId(deepLinkId);
+    setCommentsOpen(true);
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('c');
+      const qs = url.searchParams.toString();
+      window.history.replaceState(
+        {},
+        '',
+        qs ? `${url.pathname}?${qs}` : url.pathname
+      );
+    }
+  }, [deepLinkId, openCommentsFromLink, videos, setCommentsOpen]);
 
   // Keep ?v= in sync with the active video for shareable URLs
   useEffect(() => {

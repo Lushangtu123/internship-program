@@ -1,7 +1,7 @@
 # Product roadmap (incremental)
 
 We improve toward a TikTok-like product **one step at a time**.
-Completed work lands on `main`; experimental ideas stay on branches.
+**Confirmed** updates land directly on `main`; **uncertain / experimental** ideas stay on other branches.
 
 ## Step 1 — Persistent local data layer ✅
 
@@ -91,6 +91,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 
 - AuthBar identity chip links to `/creator/[me]`
 - Profile page hides Follow when viewing yourself
+
+## Step 15 — Tappable inbox + open comments ✅
+
+- Like / comment / follow rows navigate to video or profile
+- Comment notifications use `/?v=&c=1` to open the comments drawer
+- Confirmed product updates land on `main`; experiments stay on branches
 
 ## Later ideas (not scheduled)
 

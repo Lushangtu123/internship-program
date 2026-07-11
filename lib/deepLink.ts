@@ -10,7 +10,7 @@ export function buildVideoDeepLink(
       currentSearch.startsWith('?') ? currentSearch.slice(1) : currentSearch
     );
     existing.forEach((value, key) => {
-      if (key !== 'v') url.searchParams.set(key, value);
+      if (key !== 'v' && key !== 'c') url.searchParams.set(key, value);
     });
   }
   url.searchParams.set('v', videoId);
@@ -24,4 +24,26 @@ export function findVideoIndex(
 ): number {
   if (!videoId) return -1;
   return videos.findIndex((video) => video.id === videoId);
+}
+
+/**
+ * Inbox row target:
+ * - follow → creator profile
+ * - comment → video + open comments (`c=1`)
+ * - like → video
+ */
+export function notificationTargetHref(item: {
+  type: string;
+  videoId?: string;
+  actorId: string;
+}): string | null {
+  if (item.type === 'follow') {
+    return item.actorId ? `/creator/${item.actorId}` : null;
+  }
+  if (item.videoId) {
+    const params = new URLSearchParams({ v: item.videoId });
+    if (item.type === 'comment') params.set('c', '1');
+    return `/?${params.toString()}`;
+  }
+  return item.actorId ? `/creator/${item.actorId}` : null;
 }

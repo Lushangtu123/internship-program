@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -7,6 +8,7 @@ import {
   markNotificationsRead,
   type AppNotification,
 } from '@/lib/api';
+import { notificationTargetHref } from '@/lib/deepLink';
 
 function formatRelative(ts: number) {
   const delta = Math.max(0, Date.now() - ts);
@@ -94,27 +96,41 @@ export function NotificationSheet({ open, onClose }: NotificationSheetProps) {
             </p>
           ) : (
             <ul className="divide-y divide-white/5">
-              {items.map((item) => (
-                <li
-                  key={item.id}
-                  className={`flex gap-2 px-4 py-3 text-sm ${
-                    item.read ? 'opacity-70' : 'bg-white/5'
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.actorAvatar}
-                    alt=""
-                    className="h-8 w-8 flex-shrink-0 rounded-full object-cover bg-zinc-700"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="leading-snug">{notificationCopy(item)}</p>
-                    <p className="mt-0.5 text-xs text-white/40">
-                      {formatRelative(item.createdAt)}
-                    </p>
-                  </div>
-                </li>
-              ))}
+              {items.map((item) => {
+                const href = notificationTargetHref(item);
+                const rowClass = `flex gap-2 px-4 py-3 text-sm transition-colors ${
+                  item.read ? 'opacity-70' : 'bg-white/5'
+                } ${href ? 'hover:bg-white/10' : ''}`;
+
+                const body = (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.actorAvatar}
+                      alt=""
+                      className="h-8 w-8 flex-shrink-0 rounded-full object-cover bg-zinc-700"
+                    />
+                    <div className="min-w-0 flex-1 text-left">
+                      <p className="leading-snug">{notificationCopy(item)}</p>
+                      <p className="mt-0.5 text-xs text-white/40">
+                        {formatRelative(item.createdAt)}
+                      </p>
+                    </div>
+                  </>
+                );
+
+                return (
+                  <li key={item.id}>
+                    {href ? (
+                      <Link href={href} className={rowClass} onClick={onClose}>
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className={rowClass}>{body}</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
