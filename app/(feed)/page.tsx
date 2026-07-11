@@ -30,6 +30,8 @@ function FeedPageContent() {
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get('v');
   const openCommentsFromLink = searchParams.get('c') === '1';
+  /** Next patches history.replaceState — block active-video URL sync until ?v= is resolved. */
+  const urlSyncEnabledRef = useRef(!deepLinkId);
 
   const navActive: BottomNavTab =
     sheet === 'inbox'
@@ -55,6 +57,8 @@ function FeedPageContent() {
   // Inbox / share deep links land on For You and close sheets
   useEffect(() => {
     if (!deepLinkId) return;
+    if (deepLinkHandledRef.current === deepLinkId) return;
+    urlSyncEnabledRef.current = false;
     setDeepLinkMissing(null);
     setFeedMode('foryou');
     setSheet(null);
@@ -134,7 +138,8 @@ function FeedPageContent() {
     ) {
       deepLinkHandledRef.current = deepLinkId;
       setDeepLinkMissing(deepLinkId);
-      router.replace('/');
+      // Keep ?v= until the user dismisses the banner so Next's patched
+      // history API cannot replace the target mid-resolution.
     }
   }, [
     deepLinkId,
@@ -145,7 +150,6 @@ function FeedPageContent() {
     isFetchingNextPage,
     fetchNextPage,
     scrollToVideo,
-    router,
   ]);
 
   // Comment notifications: ?v=&c=1 opens the comments drawer after scroll
@@ -170,8 +174,26 @@ function FeedPageContent() {
     }
   }, [deepLinkId, openCommentsFromLink, videos, setCommentsOpen]);
 
-  // Keep ?v= in sync with the active video for shareable URLs
+  // Re-enable active-video URL sync once the deep link landed (or failed).
   useEffect(() => {
+    if (deepLinkMissing) {
+      urlSyncEnabledRef.current = true;
+      return;
+    }
+    if (
+      deepLinkHandledRef.current &&
+      videos[currentIndex]?.id === deepLinkHandledRef.current
+    ) {
+      urlSyncEnabledRef.current = true;
+    }
+  }, [currentIndex, videos, deepLinkMissing]);
+
+  // Keep ?v= in sync with the active video for shareable URLs.
+  // Disabled while a deep link is still being resolved (Next patches replaceState).
+  useEffect(() => {
+    if (!urlSyncEnabledRef.current) return;
+    if (deepLinkMissing) return;
+    if (deepLinkId && deepLinkHandledRef.current !== deepLinkId) return;
     const id = videos[currentIndex]?.id;
     if (!id || typeof window === 'undefined') return;
     const url = new URL(window.location.href);
@@ -179,7 +201,7 @@ function FeedPageContent() {
     url.searchParams.set('v', id);
     const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
     window.history.replaceState(null, '', next);
-  }, [currentIndex, videos]);
+  }, [currentIndex, videos, deepLinkId, deepLinkMissing]);
 
   // Handle scroll
   useEffect(() => {
@@ -286,7 +308,11 @@ function FeedPageContent() {
           </div>
           <button
             type="button"
-            onClick={() => setDeepLinkMissing(null)}
+            onClick={() => {
+              setDeepLinkMissing(null);
+              urlSyncEnabledRef.current = true;
+              router.replace('/');
+            }}
             className="shrink-0 rounded-md bg-white/10 px-2.5 py-1 text-xs font-medium hover:bg-white/15"
           >
             OK
@@ -299,6 +325,7 @@ function FeedPageContent() {
         ref={containerRef}
         className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar"
         style={{ scrollSnapType: 'y mandatory' }}
+        data-testid="feed-scroll"
       >
         {videos.length === 0 ? (
           feedMode === 'following' ? (
