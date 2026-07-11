@@ -114,7 +114,7 @@
   - 新增 `lib/muteTip.ts`（`localStorage` 键 `sv_mute_tip_seen`）与 `MuteGestureTip`
   - 仅在当前激活卡片 + 仍静音 + 未看过引导时，居中显示「Tap for sound」
   - 点引导条或任意开声路径后永久不再显示
-- **结果**：首次进入有一次清晰开声提示，之后不打扰。提交：见本次 main
+- **结果**：首次进入有一次清晰开声提示，之后不打扰。提交：`33f39ef`
 - **后续**：Following/Inbox 空态引导登录；深链找不到视频时提示。
 
 ---
