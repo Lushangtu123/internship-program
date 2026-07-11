@@ -6,6 +6,7 @@ import { Home, Users, Plus, Bell, User } from 'lucide-react';
 import { fetchMe } from '@/lib/api';
 import { useNotificationUnread } from '@/components/InboxPanel';
 import { useMessageUnread } from '@/components/MessagesPanel';
+import { inboxHref } from '@/lib/inboxTab';
 import { cn } from '@/lib/utils';
 
 export type BottomNavTab = 'home' | 'following' | 'create' | 'inbox' | 'me';
@@ -30,6 +31,7 @@ export function BottomNav({
   const unreadNotifications = useNotificationUnread();
   const unreadMessages = useMessageUnread();
   const unread = unreadNotifications + unreadMessages;
+  const inboxLink = inboxHref(unreadNotifications, unreadMessages);
   const profileHref = me ? `/creator/${me.id}` : '/';
 
   const itemClass = (tab: BottomNavTab) =>
@@ -70,7 +72,7 @@ export function BottomNav({
           </span>
         </button>
         <Link
-          href="/inbox"
+          href={inboxLink}
           className={itemClass('inbox')}
           aria-label="Inbox"
           aria-current={active === 'inbox' ? 'page' : undefined}
