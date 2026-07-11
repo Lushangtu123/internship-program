@@ -192,7 +192,7 @@
   - Step 24：`CommentsDrawer` 接 `nextCursor`，底部 Load more
   - Step 25：`POST /api/videos/[id]/share` + `recordShare`；成功分享/复制后写入；排名计入 shares
   - Step 26：`UploadSheet` 用 XHR 上传进度条，完成后显示 Processing…
-- **结果**：上述四项体感补齐。提交：见本条合入 commit
+- **结果**：上述四项体感补齐。提交：`c22ef85`
 - **后续**：作品管理（删/改 caption）；搜索 MVP。
 
 ---
