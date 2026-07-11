@@ -114,6 +114,11 @@ We improve toward a TikTok-like product **one step at a time**.
 - Successful publish closes the upload sheet
 - Navigates to `/?v={newId}` on For You so the new clip plays immediately
 
+## Step 18 — Share success feedback ✅
+
+- Share uses Web Share when available, else clipboard
+- Transient toast: Shared / Link copied / Couldn’t share (cancel stays silent)
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

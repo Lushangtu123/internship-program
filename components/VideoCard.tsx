@@ -12,6 +12,7 @@ import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
 import { fetchMe, likeVideo, saveVideo, toggleFollowCreator } from '@/lib/api';import { trackComplete, trackPlay } from '@/lib/trackEngagement';
 import { buildVideoDeepLink } from '@/lib/deepLink';
+import { shareOutcomeMessage, shareVideoLink } from '@/lib/shareVideo';
 import { cn } from '@/lib/utils';
 
 interface VideoCardProps {
@@ -38,10 +39,18 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const [lastTap, setLastTap] = useState(0);
   const [showControls, setShowControls] = useState(false);
   const [showPauseIcon, setShowPauseIcon] = useState(false);
-  
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const shareToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { isMuted, showCaptions, setActiveVideoId } = useUIStore();
 
   useHlsPlayback(videoRef, video.src);
+
+  useEffect(() => {
+    return () => {
+      if (shareToastTimer.current) clearTimeout(shareToastTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     setLocalLiked(video.liked || false);
@@ -221,21 +230,22 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
     }
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = buildVideoDeepLink(
       window.location.origin,
       video.id,
       window.location.search
     );
-    if (navigator.share) {
-      navigator.share({
-        title: video.caption,
-        text: `Check out this video by ${video.creator.handle}`,
-        url,
-      }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(url);
-    }
+    const outcome = await shareVideoLink({
+      url,
+      title: video.caption,
+      text: `Check out this video by ${video.creator.handle}`,
+    });
+    const message = shareOutcomeMessage(outcome);
+    if (!message) return;
+    if (shareToastTimer.current) clearTimeout(shareToastTimer.current);
+    setShareMessage(message);
+    shareToastTimer.current = setTimeout(() => setShareMessage(null), 1800);
   };
 
   const toggleMute = (e?: React.MouseEvent) => {
@@ -403,6 +413,16 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
           <Volume2 className="w-4 h-4 text-white/90" />
         )}
       </button>
+
+      {shareMessage && (
+        <div
+          className="pointer-events-none absolute bottom-36 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          {shareMessage}
+        </div>
+      )}
     </div>
   );
 }
