@@ -375,7 +375,7 @@
 - **方法**：
   - `packagingStatusToast(prev, next)`：processing→ready 显示 Ready（约 2.2s）
   - VideoCard 左上角角标；失败仍提示
-- **结果**：待提交后回填。
+- **结果**：提交：`6dd3896`；`npm test` 83 通过。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---
