@@ -2,15 +2,15 @@
 
 ## 第一步：安装依赖
 
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
 ## 第二步：启动开发服务器
 
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 ## 第三步：打开浏览器
 
@@ -56,7 +56,7 @@ npm run dev
 
 编辑 `public/mock/seed.json` 来修改视频数据：
 
-\`\`\`json
+```json
 {
   "videos": [
     {
@@ -67,29 +67,29 @@ npm run dev
     }
   ]
 }
-\`\`\`
+```
 
 ---
 
 ## 🧪 运行测试
 
-\`\`\`bash
+```bash
 # 单元测试
 npm run test
 
 # E2E测试（首次需要安装浏览器）
 npx playwright install
 npm run e2e
-\`\`\`
+```
 
 ---
 
 ## 📦 生产构建
 
-\`\`\`bash
+```bash
 npm run build
 npm run start
-\`\`\`
+```
 
 ---
 
@@ -110,7 +110,8 @@ npm run start
 - **README_PROJECT.md** - 完整项目说明
 - **INSTRUCTIONS.md** - 详细设置说明
 - **PROJECT_SUMMARY.md** - 项目摘要
-- **readme.md** - 原始需求文档
+- **README.md** - 项目总览
+- **CODING_GUIDE.md** - 需求与 AI 执行规范
 
 ---
 

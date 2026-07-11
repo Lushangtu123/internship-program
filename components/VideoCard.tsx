@@ -59,29 +59,16 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
     if (!video) return;
 
     const handleVideoPause = () => {
-      // If video is paused while in view, it's likely manual
+      // If video is paused while in view, treat as manual pause
       if (isInView) {
         manuallyPausedRef.current = true;
-        console.log('🔴 Manual pause detected, ref set to true');
-      }
-    };
-
-    const handleVideoPlay = () => {
-      // When video plays, check if it's allowed
-      if (manuallyPausedRef.current && isInView) {
-        console.log('🚫 Play detected but user manually paused - will force pause');
-        // Don't pause here, let the monitoring interval handle it
-      } else {
-        console.log('🟢 Play detected, ref is', manuallyPausedRef.current);
       }
     };
 
     video.addEventListener('pause', handleVideoPause);
-    video.addEventListener('play', handleVideoPlay);
 
     return () => {
       video.removeEventListener('pause', handleVideoPause);
-      video.removeEventListener('play', handleVideoPlay);
     };
   }, [isInView]);
 
@@ -90,10 +77,9 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
     const video = videoRef.current;
     if (!video) return;
 
-    // Check every 100ms if video state is correct
+    // Enforce manual pause against autoplay races
     const intervalId = setInterval(() => {
       if (manuallyPausedRef.current && isInView && !video.paused) {
-        console.log('🛑 ENFORCING PAUSE - video playing but should be paused');
         video.pause();
       }
     }, 100);
@@ -147,12 +133,10 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const handlePlayPause = () => {
     if (videoRef.current) {
       if (isPlaying) {
-        console.log('👆 User clicked to pause');
         videoRef.current.pause();
-        // manuallyPaused state will be updated by event listener
+        // manuallyPausedRef is updated by the pause event listener
       } else {
-        console.log('👆 User clicked to play - clearing manual pause flag');
-        manuallyPausedRef.current = false; // Clear flag before playing
+        manuallyPausedRef.current = false;
         videoRef.current.play();
       }
     }
@@ -271,8 +255,12 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
             {/* Creator Info */}
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden flex-shrink-0">
-                {/* Avatar placeholder */}
-                <div className="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={video.creator.avatar}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="flex items-center gap-2 min-w-0">
                 <span className="font-semibold text-white truncate">

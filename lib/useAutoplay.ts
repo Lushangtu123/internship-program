@@ -63,7 +63,6 @@ export function useAutoplay(
               return;
             }
             
-            console.log('📍 View state changed:', wasInViewRef.current, '→', inView);
             wasInViewRef.current = inView;
             setIsInView(inView);
 
@@ -88,24 +87,16 @@ export function useAutoplay(
               const canAutoplay = shouldAutoplayRef.current ? shouldAutoplayRef.current() : true;
               const isPaused = video.paused;
               
-              console.log('🎬 Autoplay check - canAutoplay:', canAutoplay, 'isPaused:', isPaused);
-              
               if (canAutoplay && isPaused) {
-                console.log('▶️ Auto-playing video');
                 video.play().catch((err) => {
-                  console.error('❌ Autoplay failed:', err);
+                  console.error('Autoplay failed:', err);
                 });
-              } else if (!canAutoplay && isPaused) {
-                console.log('⏸️ Autoplay blocked - user manually paused');
-              } else {
-                console.log('✅ Video already in correct state');
               }
               
               checkTimeoutRef.current = null;
             }, 100);
           } else {
             // Video left view
-            console.log('👋 Video left view');
             hasInitializedRef.current = false;
             onLeaveViewRef.current?.();
             video.pause();

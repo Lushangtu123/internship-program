@@ -39,28 +39,28 @@
 
 ### 安装依赖
 
-\`\`\`bash
+```bash
 pnpm install
 # 或
 npm install
-\`\`\`
+```
 
 ### 开发环境
 
-\`\`\`bash
+```bash
 pnpm dev
 # 访问 http://localhost:3000
-\`\`\`
+```
 
 ### 构建和启动
 
-\`\`\`bash
+```bash
 pnpm build && pnpm start
-\`\`\`
+```
 
 ### 运行测试
 
-\`\`\`bash
+```bash
 # 单元测试
 pnpm test
 
@@ -69,19 +69,19 @@ pnpm e2e -- --headed
 
 # E2E测试（CI模式）
 pnpm e2e
-\`\`\`
+```
 
 ### 代码检查和类型检查
 
-\`\`\`bash
+```bash
 pnpm lint && pnpm typecheck
-\`\`\`
+```
 
 ### Lighthouse CI
 
-\`\`\`bash
+```bash
 pnpm lhci
-\`\`\`
+```
 
 ---
 
@@ -99,7 +99,7 @@ pnpm lhci
 
 ## 📦 项目结构
 
-\`\`\`
+```
 app/
   (feed)/page.tsx           # 主信息流页面
   api/
@@ -124,7 +124,7 @@ public/
   posters/                  # 海报图片
   avatars/                  # 头像图片
   captions/                 # .vtt字幕文件
-\`\`\`
+```
 
 ---
 

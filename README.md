@@ -1,168 +1,177 @@
-# 🎬 Short Video Feed - TikTok Clone
+# Short Video Feed — TikTok-style Web App
 
-一个高性能的短视频"为你推荐"信息流 Web 应用，采用现代化技术栈打造，具备流畅的用户体验和完善的交互功能。
+一个高性能的短视频「为你推荐」信息流 Web 应用：垂直全屏滚动、视口自动播放、双击点赞、评论抽屉、键盘快捷键，以及轻量 QoE 监控。
 
-![Next.js](https://img.shields.io/badge/Next.js-14.2-black?style=flat-square&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)
+![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8?style=flat-square&logo=tailwind-css)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38bdf8?style=flat-square&logo=tailwind-css)
 
-## ✨ 功能特性
+## 功能特性
 
-### 🎥 核心功能
-- ✅ **无限滚动视频流** - 流畅加载更多视频
-- ✅ **自动播放/暂停** - 基于视口的智能控制
-- ✅ **手动播放/暂停** - 单击视频切换播放状态
-- ✅ **双击点赞** - TikTok 风格的双击交互
-- ✅ **评论系统** - 完整的评论查看和发布功能
-- ✅ **分享功能** - 原生分享 API 支持
-- ✅ **音量控制** - 全局静音/取消静音
-- ✅ **字幕开关** - 可选的视频字幕显示
+### 核心体验
+- **垂直信息流** — 每屏一个视频，无限滚动（游标分页）
+- **自动播放 / 暂停** — `IntersectionObserver`（约 70% 可见时播放）
+- **手动播放 / 暂停** — 单击视频或空格键切换
+- **双击点赞** — TikTok 风格动画 + 乐观更新
+- **评论抽屉** — 移动端底部抽屉 / 桌面端侧栏，支持发送与乐观追加
+- **分享** — Web Share API（不支持时回退）
+- **收藏** — 本地 UI 切换
+- **音量控制** — 全局静音 / 取消静音
+- **字幕开关** — 可选 `<track>` 字幕显示（示例见 `public/captions/`）
+- **调试面板** — 访问 `/?debug=1` 查看 QoE 指标
 
-### ⌨️ 键盘快捷键
-- \`J\` / \`K\` - 上一个/下一个视频
-- \`Space\` - 播放/暂停当前视频
-- \`M\` - 静音/取消静音
-- \`C\` - 开关字幕
-- \`/\` - 打开/关闭评论
+### 键盘快捷键
 
-### 🚀 性能优化
-- **视频预加载** - 提前加载相邻视频
-- **防抖机制** - 优化 IntersectionObserver 触发频率
-- **乐观 UI 更新** - 点赞和评论即时反馈
-- **QoE 监控** - 首帧时间（TTFF）、卡顿监控
+| 按键 | 操作 |
+|------|------|
+| `J` / `↓` | 下一个视频 |
+| `K` / `↑` | 上一个视频 |
+| `Space` | 播放 / 暂停 |
+| `M` | 静音 / 取消静音 |
+| `C` | 开关字幕 |
+| `/` | 聚焦评论输入框 |
 
-## 🛠️ 技术栈
+### 性能与体验
+- 相邻视频预加载（`usePrefetch`）
+- IntersectionObserver 防抖，减少误触发
+- 点赞 / 评论乐观 UI
+- QoE：首帧时间（TTFF）、卡顿次数与时长等（可上报 `/api/telemetry`）
 
-- **Next.js 14** - App Router + Server Components
-- **React 18** - 最新特性支持
-- **TypeScript** - 类型安全
-- **Tailwind CSS** - 原子化 CSS
-- **shadcn/ui** - 高质量组件库
-- **Zustand** - 状态管理
-- **React Query** - 服务端数据管理
-- **Vitest** - 单元测试
-- **Playwright** - E2E 测试
+## 技术栈
 
-## 📦 快速开始
+| 类别 | 选型 |
+|------|------|
+| 框架 | Next.js 14（App Router）+ TypeScript |
+| UI | Tailwind CSS + shadcn/ui 风格组件 |
+| 状态 | Zustand（UI）+ TanStack React Query（服务端数据） |
+| 测试 | Vitest（单元）+ Playwright（E2E） |
+| 性能 | Lighthouse CI（`lhci`） |
 
-### 安装依赖
+## 快速开始
 
-\`\`\`bash
+### 前置要求
+
+- Node.js ≥ 18
+- npm（或 pnpm / yarn）
+
+### 安装与开发
+
+```bash
 npm install
-\`\`\`
-
-### 启动开发服务器
-
-\`\`\`bash
 npm run dev
-\`\`\`
+```
 
-访问 [http://localhost:3000](http://localhost:3000) 查看应用。
+打开 [http://localhost:3000](http://localhost:3000)。
 
-### 构建生产版本
+调试面板：[http://localhost:3000?debug=1](http://localhost:3000?debug=1)
 
-\`\`\`bash
+### 构建与生产
+
+```bash
 npm run build
 npm run start
-\`\`\`
+```
 
-### 运行测试
+### 测试与检查
 
-\`\`\`bash
+```bash
 # 单元测试
 npm run test
 
-# E2E 测试
-npm run test:e2e
+# E2E（首次需安装浏览器）
+npx playwright install
+npm run e2e
+
+# 类型检查 / Lint
+npm run typecheck
+npm run lint
 
 # Lighthouse CI
-npm run lighthouse
-\`\`\`
+npm run lhci
+```
 
-## 📁 项目结构
+## 项目结构
 
-\`\`\`
+```
 internship-program/
-├── app/                      # Next.js App Router
-│   ├── api/                  # API 路由
-│   ├── page.tsx             # 首页
-│   └── layout.tsx           # 根布局
-├── components/              # React 组件
-│   ├── VideoCard.tsx        # 视频卡片
-│   ├── ActionsBar.tsx       # 操作栏
-│   └── CommentsDrawer.tsx   # 评论抽屉
-├── lib/                     # 工具函数和 Hooks
-│   ├── useAutoplay.ts       # 自动播放 Hook
-│   ├── keyboard.ts          # 键盘快捷键
-│   └── store.ts             # Zustand Store
-├── types/                   # TypeScript 类型
-├── public/                  # 静态资源
-└── __tests__/               # 测试文件
-\`\`\`
+├── app/
+│   ├── (feed)/              # 信息流（/）与布局
+│   ├── api/
+│   │   ├── videos/          # 列表 / 点赞 / 评论
+│   │   └── telemetry/       # QoE 上报
+│   ├── layout.tsx
+│   └── providers.tsx
+├── components/
+│   ├── VideoCard.tsx
+│   ├── ActionsBar.tsx
+│   ├── CommentsDrawer.tsx
+│   ├── CaptionBadge.tsx
+│   ├── DebugPanel.tsx
+│   └── ui/
+├── lib/
+├── types/
+├── public/
+│   ├── mock/seed.json
+│   ├── posters/
+│   ├── avatars/
+│   └── captions/
+├── docs/archive/            # 临时修复笔记归档
+├── __tests__/
+├── e2e/
+├── README.md
+└── CODING_GUIDE.md          # AI / 协作执行规范
+```
 
-## 🎯 核心功能实现
+## API
 
-### 自动播放控制
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/videos?limit=5&cursor=` | 视频列表（游标分页） |
+| `POST` | `/api/videos/:id/like` | 点赞 |
+| `GET` | `/api/videos/:id/comments` | 获取评论 |
+| `POST` | `/api/videos/:id/comments` | 发布评论 |
+| `POST` | `/api/telemetry` | QoE 遥测上报 |
 
-使用 \`IntersectionObserver\` API 监控视频可见性，配合防抖机制优化性能：
+当前 API 为 Mock 实现；内容在 `public/mock/seed.json`。
 
-\`\`\`typescript
-const observer = new IntersectionObserver(
-  (entries) => {
-    // 150ms 防抖 + 50px 缓冲区
-  },
-  { threshold: 0.7, rootMargin: '50px' }
-);
-\`\`\`
+## 配置说明
 
-### 手动暂停控制
+- 可选环境变量：`NEXT_PUBLIC_CDN_ORIGIN`
+- 本地海报 / 头像 / 字幕位于 `public/posters`、`public/avatars`、`public/captions`
+- 修改 `seed.json` 可自定义视频列表与评论
 
-使用 \`useRef\` 实现即时状态访问，避免 React 异步更新导致的竞态条件。
+## 性能目标
 
-### 无限滚动
+| 指标 | 目标 |
+|------|------|
+| TTI | ≤ 1.5s（3G Fast / 中端设备） |
+| CLS | ≤ 0.02 |
+| 视频首帧（进入视口后） | ≤ 250ms（配合预加载） |
+| 初始路由 JS | < 200KB（gzip，见 Lighthouse CI 预算） |
 
-使用 React Query 的 \`useInfiniteQuery\` 实现流畅的无限滚动加载。
+本地可用 `npm run lhci` 对照 `.lighthouserc.json`。
 
-## 🔌 API 接口
+## 无障碍
 
-### 获取视频列表
-\`\`\`
-GET /api/videos?limit=5&cursor=0
-\`\`\`
+- 键盘可完整操作（快捷键 + 可见焦点）
+- 关键控件带 ARIA 标签
+- 尊重 `prefers-reduced-motion`
+- 字幕通过 `<track kind="captions">` 支持
 
-### 点赞视频
-\`\`\`
-POST /api/videos/:id/like
-\`\`\`
+## 文档索引
 
-### 获取/发布评论
-\`\`\`
-GET  /api/videos/:id/comments
-POST /api/videos/:id/comments
-\`\`\`
+| 文档 | 用途 |
+|------|------|
+| [QUICKSTART.md](./QUICKSTART.md) | 快速上手 |
+| [CODING_GUIDE.md](./CODING_GUIDE.md) | 需求与 AI 执行规范 |
+| [README_PROJECT.md](./README_PROJECT.md) | 设计与实现说明 |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | 故障排查 |
+| [COMMENT_GUIDE.md](./COMMENT_GUIDE.md) | 评论功能 |
+| [PAUSE_FEATURE_GUIDE.md](./PAUSE_FEATURE_GUIDE.md) | 暂停 / 播放交互 |
+| [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) | 功能摘要与后续建议 |
+| [docs/archive/](./docs/archive/) | 历史排查笔记（归档） |
 
-## 📊 性能指标
-
-| 指标 | 目标 | 当前 | 状态 |
-|------|------|------|------|
-| Performance | ≥ 90 | 92 | ✅ |
-| Accessibility | ≥ 95 | 98 | ✅ |
-| Best Practices | ≥ 95 | 96 | ✅ |
-| SEO | ≥ 95 | 100 | ✅ |
-
-## 📖 文档
-
-- [快速开始](./QUICKSTART.md)
-- [故障排查](./TROUBLESHOOTING.md)
-- [评论功能指南](./COMMENT_GUIDE.md)
-- [暂停功能指南](./PAUSE_FEATURE_GUIDE.md)
-- [IntersectionObserver 优化](./INTERSECTION_OBSERVER_FIX.md)
-
-## 📄 许可证
+## 许可证
 
 MIT License
-
----
-
-⭐ 如果这个项目对你有帮助，请给个 Star！

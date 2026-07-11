@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { VideoCard } from '@/components/VideoCard';
 import { CommentsDrawer } from '@/components/CommentsDrawer';
@@ -12,7 +12,7 @@ import { useVideoPrefetch } from '@/lib/usePrefetch';
 import { qoeLogger } from '@/lib/qoe';
 import { useSearchParams } from 'next/navigation';
 
-export default function FeedPage() {
+function FeedPageContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -199,6 +199,20 @@ export default function FeedPage() {
         </ul>
       </div>
     </>
+  );
+}
+
+export default function FeedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen w-full flex items-center justify-center bg-black text-white">
+          Loading...
+        </div>
+      }
+    >
+      <FeedPageContent />
+    </Suspense>
   );
 }
 

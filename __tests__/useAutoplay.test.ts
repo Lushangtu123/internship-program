@@ -1,37 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useAutoplay } from '@/lib/useAutoplay';
-import { useRef } from 'react';
+import { createRef } from 'react';
 
-// Mock IntersectionObserver
-const mockIntersectionObserver = vi.fn();
-mockIntersectionObserver.mockReturnValue({
-  observe: () => null,
-  unobserve: () => null,
-  disconnect: () => null,
+const mockObserve = vi.fn();
+const mockUnobserve = vi.fn();
+const mockDisconnect = vi.fn();
+const mockIntersectionObserver = vi.fn(function () {
+  return {
+    observe: mockObserve,
+    unobserve: mockUnobserve,
+    disconnect: mockDisconnect,
+  };
 });
-window.IntersectionObserver = mockIntersectionObserver as any;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  window.IntersectionObserver = mockIntersectionObserver as unknown as typeof IntersectionObserver;
+});
 
 describe('useAutoplay', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should initialize with default values', () => {
-    const { result } = renderHook(() => {
-      const ref = useRef<HTMLVideoElement>(null);
-      return useAutoplay(ref, { videoId: 'test-video' });
-    });
+    const ref = createRef<HTMLVideoElement>();
+    const { result } = renderHook(() =>
+      useAutoplay(ref, { videoId: 'test-video' })
+    );
 
     expect(result.current.isInView).toBe(false);
     expect(result.current.isPlaying).toBe(false);
   });
 
-  it('should use custom threshold', () => {
-    renderHook(() => {
-      const ref = useRef<HTMLVideoElement>(null);
-      return useAutoplay(ref, { videoId: 'test-video', threshold: 0.5 });
-    });
+  it('should use custom threshold when video element is present', () => {
+    const video = document.createElement('video');
+    const ref = { current: video };
+
+    renderHook(() => useAutoplay(ref, { videoId: 'test-video', threshold: 0.5 }));
 
     expect(mockIntersectionObserver).toHaveBeenCalledWith(
       expect.any(Function),
@@ -39,6 +42,6 @@ describe('useAutoplay', () => {
         threshold: [0.5],
       })
     );
+    expect(mockObserve).toHaveBeenCalledWith(video);
   });
 });
-
