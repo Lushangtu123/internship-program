@@ -161,7 +161,7 @@
 - **方法**：
   - `/creator/[id]` 本地挂载 `NotificationSheet` / `UploadSheet`
   - Inbox/Create 只切换本页 sheet，不再跳转 feed；上传成功仍跳到新视频
-- **结果**：Me → Inbox 留在个人主页打开通知面板。提交：见本次 main
+- **结果**：Me → Inbox 留在个人主页打开通知面板。提交：`c73a978`
 - **后续**：ABR / 对象存储等不确定项走实验分支。
 
 ---
