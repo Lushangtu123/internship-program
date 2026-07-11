@@ -34,6 +34,9 @@ export function useHlsPlayback(
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
+        // Prefer the rung that fits the player box (ABR master playlists).
+        capLevelToPlayerSize: true,
+        startLevel: -1,
       });
       hls.loadSource(src);
       hls.attachMedia(video);

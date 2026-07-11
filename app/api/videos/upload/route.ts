@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createVideo } from '@/lib/db/feedStore';
 import { requireUser, withSession } from '@/lib/auth/session';
-import { saveUploadedVideo } from '@/lib/upload/processVideo';
+import { acceptUploadedVideo } from '@/lib/upload/processVideo';
+import { enqueueHlsTranscode } from '@/lib/upload/transcodeQueue';
 
 export const runtime = 'nodejs';
 
@@ -31,16 +32,31 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const saved = await saveUploadedVideo(file);
+    // Fast path: write file + poster, return progressive playback immediately.
+    // HLS packaging continues in the background.
+    const saved = await acceptUploadedVideo(file);
     const video = await createVideo({
-      src: saved.src,
+      id: saved.id,
+      src: saved.progressiveSrc,
+      progressiveSrc: saved.progressiveSrc,
       poster: saved.poster,
       duration: saved.duration,
       caption,
       user,
+      status: 'processing',
     });
 
-    return withSession(NextResponse.json({ video }), token, isNewSession);
+    enqueueHlsTranscode({
+      videoId: video.id,
+      absolutePath: saved.absolutePath,
+      uploadId: saved.id,
+    });
+
+    return withSession(
+      NextResponse.json({ video, status: video.status }),
+      token,
+      isNewSession
+    );
   } catch (error) {
     const status =
       error && typeof error === 'object' && 'status' in error

@@ -5,7 +5,7 @@ We improve toward a TikTok-like product **one step at a time**.
 
 ## Step 1 — Persistent local data layer ✅
 
-- File-backed store at `data/store.json` (seeded from `public/mock/seed.json`)
+- File-backed store at `data/store.sqlite` (seeded from `public/mock/seed.json`; legacy `store.json` migrated once)
 - Likes and comments persist across restarts
 - API routes use `lib/db/feedStore.ts`
 
@@ -19,13 +19,13 @@ We improve toward a TikTok-like product **one step at a time**.
 ## Step 3 — Upload pipeline ✅
 
 - `POST /api/videos/upload` (multipart)
-- Local storage under `public/uploads/` (stub toward object storage)
+- Local storage under `public/uploads/` (object-storage abstraction; S3 driver experimental)
 - ffmpeg poster frame + duration probe
 - Uploads prepend into the feed; `UploadButton` UI
 
 ## Step 4 — HLS playback ✅
 
-- Uploads are transcoded to single-rendition VOD HLS (`public/uploads/hls/{id}/`)
+- Uploads are transcoded to multi-rendition VOD HLS (`public/uploads/hls/{id}/`, ABR experimental)
 - Progressive file kept as fallback artifact
 - Player uses native HLS (Safari) or `hls.js` (Chromium)
 - CDN-friendly cache headers on `/uploads/hls/*`
@@ -169,6 +169,17 @@ We improve toward a TikTok-like product **one step at a time**.
 
 ## Later ideas (not scheduled)
 
-- Multi-bitrate ABR ladders
-- Real object storage + CDN origin
-- Messaging / inbox
+- Horizontal SQLite / shared DB for multi-instance store (beyond single-node WAL)
+
+## Experimental (branch) — productization stack
+
+- Affinity boosts on For You from follows / liked creators / saves / plays
+- Upload returns progressive playback immediately (`status=processing`); HLS packages in background
+- Persist feed state in SQLite WAL (`data/store.sqlite`) with **normalized relational tables** (migrates legacy JSON / v1 blob)
+- Object storage abstraction: local `public/uploads` (default) or S3-compatible via `STORAGE_DRIVER=s3`
+- Multi-bitrate ABR HLS ladder (360p / 480p / 720p) with master playlist; hls.js caps level to player size
+- **Messaging MVP**: Inbox Activity | Messages; 1:1 DMs; creator Message button; unread badge combines notifications + DMs
+- **Incremental SQL ops** for engagement, DMs, auth, and video CRUD (full snapshot only for seed/migration)
+- **DM SSE realtime** (in-process bus; polling fallback; Live indicator)
+- **Optional Redis DM fan-out** (`REDIS_URL`) for multi-instance SSE
+- Branch: `cursor/personalize-async-upload-8729`

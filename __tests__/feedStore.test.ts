@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, readFile } from 'fs/promises';
+import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import {
@@ -19,22 +19,27 @@ import {
   registerUser,
   resetStoreCache,
   searchCatalog,
+  sendMessage,
+  getOrCreateConversation,
+  listConversations,
+  listMessages,
+  markConversationRead,
   toggleFollow,
   toggleLike,
   toggleSave,
   updateVideoCaption,
+  updateVideoPlayback,
 } from '@/lib/db/feedStore';
 
 describe('feedStore identity + persistence', () => {
   let dataDir: string;
 
   beforeEach(async () => {
-    resetStoreCache();
     dataDir = await mkdtemp(path.join(tmpdir(), 'feed-store-'));
   });
 
   afterEach(async () => {
-    resetStoreCache();
+    resetStoreCache(dataDir);
     await rm(dataDir, { recursive: true, force: true });
   });
 
@@ -59,12 +64,13 @@ describe('feedStore identity + persistence', () => {
     expect(forA.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
     expect(forB.items.find((v) => v.id === 'v_001')?.liked).toBe(false);
 
-    resetStoreCache();
+    resetStoreCache(dataDir);
     const forAAgain = await listVideos(null, 50, a.user.id, dataDir);
     expect(forAAgain.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
 
-    const raw = await readFile(path.join(dataDir, 'store.json'), 'utf-8');
-    expect(raw).toContain(a.user.id);
+    const { readSqliteSnapshot } = await import('@/lib/db/sqliteBackend');
+    const snap = readSqliteSnapshot(dataDir);
+    expect(JSON.stringify(snap)).toContain(a.user.id);
   });
 
   it('increments share count on a video', async () => {
@@ -72,7 +78,7 @@ describe('feedStore identity + persistence', () => {
     const base = before.items.find((v) => v.id === 'v_001')?.stats.shares ?? 0;
     const shared = await recordShare('v_001', dataDir);
     expect(shared.ok && shared.shares).toBe(base + 1);
-    resetStoreCache();
+    resetStoreCache(dataDir);
     const after = await listVideos(null, 50, null, dataDir);
     expect(after.items.find((v) => v.id === 'v_001')?.stats.shares).toBe(base + 1);
   });
@@ -304,6 +310,63 @@ describe('feedStore identity + persistence', () => {
     expect(ids.indexOf(olderHot.id)).toBeLessThan(ids.indexOf(quietNewer.id));
   });
 
+  it('personalizes For You toward followed creators', async () => {
+    const viewer = await createGuestUser(dataDir);
+    const creatorA = await createGuestUser(dataDir);
+    const creatorB = await createGuestUser(dataDir);
+
+    const fromA = await createVideo(
+      {
+        src: '/uploads/videos/a.webm',
+        poster: '/uploads/posters/a.jpg',
+        duration: 3,
+        caption: 'from A',
+        user: creatorA.user,
+      },
+      dataDir
+    );
+    const fromB = await createVideo(
+      {
+        src: '/uploads/videos/b.webm',
+        poster: '/uploads/posters/b.jpg',
+        duration: 3,
+        caption: 'from B',
+        user: creatorB.user,
+      },
+      dataDir
+    );
+
+    await toggleFollow(viewer.user.id, creatorA.user.id, dataDir);
+
+    const page = await listVideos(null, 50, viewer.user.id, dataDir, 'foryou');
+    const ids = page.items.map((item) => item.id);
+    expect(ids.indexOf(fromA.id)).toBeLessThan(ids.indexOf(fromB.id));
+  });
+
+  it('marks uploads as processing then ready after playback update', async () => {
+    const guest = await createGuestUser(dataDir);
+    const video = await createVideo(
+      {
+        src: '/uploads/videos/demo.webm',
+        progressiveSrc: '/uploads/videos/demo.webm',
+        poster: '/uploads/posters/demo.jpg',
+        duration: 3,
+        caption: 'async',
+        user: guest.user,
+        status: 'processing',
+      },
+      dataDir
+    );
+    expect(video.status).toBe('processing');
+    const updated = await updateVideoPlayback(
+      video.id,
+      { src: '/uploads/hls/demo/index.m3u8', status: 'ready' },
+      dataDir
+    );
+    expect(updated.ok && updated.video.status).toBe('ready');
+    expect(updated.ok && updated.video.src).toContain('.m3u8');
+  });
+
   it('filters following feed to followed creators only', async () => {
     const guest = await createGuestUser(dataDir);
     const followed = await toggleFollow(guest.user.id, 'u_1', dataDir);
@@ -425,5 +488,120 @@ describe('feedStore identity + persistence', () => {
     await toggleFollow(guest.user.id, before[0].id, dataDir);
     const after = await listSuggestedCreators(guest.user.id, 10, dataDir);
     expect(after.every((c) => c.id !== before[0].id)).toBe(true);
+  });
+
+  it('supports 1:1 messaging between registered users', async () => {
+    const aliceGuest = await createGuestUser(dataDir);
+    const bobGuest = await createGuestUser(dataDir);
+    const alice = await registerUser(
+      `alice_${Date.now().toString(36)}`,
+      'password123',
+      dataDir,
+      aliceGuest.user.id
+    );
+    const bob = await registerUser(
+      `bob_${Date.now().toString(36)}`,
+      'password123',
+      dataDir,
+      bobGuest.user.id
+    );
+    expect('user' in alice && 'user' in bob).toBe(true);
+    if (!('user' in alice) || !('user' in bob)) return;
+
+    const stranger = await createGuestUser(dataDir);
+    const guestTry = await getOrCreateConversation(
+      stranger.user.id,
+      bob.user.id,
+      dataDir
+    );
+    expect(guestTry.ok).toBe(false);
+
+    const opened = await getOrCreateConversation(
+      alice.user.id,
+      bob.user.id,
+      dataDir
+    );
+    expect(opened.ok && opened.conversation.peer.id).toBe(bob.user.id);
+    if (!opened.ok) throw new Error('expected conversation');
+
+    const sent = await sendMessage(
+      opened.conversation.id,
+      alice.user.id,
+      'hello bob',
+      dataDir
+    );
+    expect(sent.ok && sent.message.text).toBe('hello bob');
+
+    const bobList = await listConversations(bob.user.id, dataDir);
+    expect(bobList.unreadCount).toBe(1);
+    expect(bobList.items[0]?.lastMessage?.text).toBe('hello bob');
+
+    const thread = await listMessages(
+      opened.conversation.id,
+      bob.user.id,
+      50,
+      dataDir
+    );
+    expect(thread.ok && thread.items).toHaveLength(1);
+
+    await markConversationRead(opened.conversation.id, bob.user.id, dataDir);
+    const afterRead = await listConversations(bob.user.id, dataDir);
+    expect(afterRead.unreadCount).toBe(0);
+
+    resetStoreCache(dataDir);
+    const again = await listMessages(
+      opened.conversation.id,
+      alice.user.id,
+      50,
+      dataDir
+    );
+    expect(again.ok && again.items[0]?.text).toBe('hello bob');
+  });
+
+  it('keeps likes when messaging uses incremental SQL writes', async () => {
+    const aliceGuest = await createGuestUser(dataDir);
+    const bobGuest = await createGuestUser(dataDir);
+    const alice = await registerUser(
+      `alice_inc_${Date.now().toString(36)}`,
+      'password123',
+      dataDir,
+      aliceGuest.user.id
+    );
+    const bob = await registerUser(
+      `bob_inc_${Date.now().toString(36)}`,
+      'password123',
+      dataDir,
+      bobGuest.user.id
+    );
+    if (!('user' in alice) || !('user' in bob)) return;
+
+    await toggleLike('v_001', alice.user.id, dataDir);
+    const { countTableRows } = await import('@/lib/db/sqliteOps');
+    const likesBefore = countTableRows(dataDir, 'likes');
+    expect(likesBefore).toBeGreaterThan(0);
+
+    const opened = await getOrCreateConversation(
+      alice.user.id,
+      bob.user.id,
+      dataDir
+    );
+    if (!opened.ok) throw new Error('expected conversation');
+    await sendMessage(opened.conversation.id, alice.user.id, 'inc write', dataDir);
+
+    expect(countTableRows(dataDir, 'likes')).toBe(likesBefore);
+    expect(countTableRows(dataDir, 'messages')).toBeGreaterThan(0);
+
+    resetStoreCache(dataDir);
+    const forA = await listVideos(null, 50, alice.user.id, dataDir);
+    expect(forA.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
+    const thread = await listMessages(
+      opened.conversation.id,
+      bob.user.id,
+      50,
+      dataDir
+    );
+    expect(thread.ok && thread.items.some((m) => m.text === 'inc write')).toBe(
+      true
+    );
   });
 });

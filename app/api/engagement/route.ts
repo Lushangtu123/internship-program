@@ -3,7 +3,7 @@ import { recordSignal } from '@/lib/db/feedStore';
 import { requireUser, withSession } from '@/lib/auth/session';
 
 export async function POST(request: NextRequest) {
-  const { token, isNewSession } = await requireUser(request);
+  const { user, token, isNewSession } = await requireUser(request);
   const body = await request.json().catch(() => ({}));
   const videoId = String(body.videoId ?? '');
   const type = body.type as string;
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const result = await recordSignal(videoId, type);
+  const result = await recordSignal(videoId, type, undefined, user.id);
   if (!result.ok) {
     return withSession(
       NextResponse.json({ error: result.error }, { status: 404 }),

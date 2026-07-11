@@ -5,6 +5,15 @@ export interface VideoSignals {
   completes: number;
 }
 
+/** Per-viewer affinity built from likes / saves / follows (experimental). */
+export interface UserAffinity {
+  followedCreators: Set<string>;
+  likedCreators: Set<string>;
+  savedVideoIds: Set<string>;
+  likedVideoIds: Set<string>;
+  playedVideoIds: Set<string>;
+}
+
 /** Simple “For You” score: engagement + freshness (Step 5). */
 export function computeVideoScore(
   video: Video,
@@ -31,15 +40,37 @@ export function computeVideoScore(
   return engagement + freshness;
 }
 
+/**
+ * Personal boost on top of the global score.
+ * Followed / liked creators rise; already-liked videos sink slightly.
+ */
+export function computePersonalBoost(
+  video: Video,
+  affinity: UserAffinity
+): number {
+  let boost = 0;
+  if (affinity.followedCreators.has(video.creator.id)) boost += 12;
+  if (affinity.likedCreators.has(video.creator.id)) boost += 8;
+  if (affinity.savedVideoIds.has(video.id)) boost += 4;
+  if (affinity.playedVideoIds.has(video.id)) boost += 2;
+  if (affinity.likedVideoIds.has(video.id)) boost -= 6;
+  return boost;
+}
+
 export function rankVideos(
   videos: Video[],
   signalsByVideo: Record<string, VideoSignals>,
-  now = Date.now()
+  now = Date.now(),
+  affinity?: UserAffinity
 ): Video[] {
   return [...videos].sort((a, b) => {
-    const scoreDiff =
-      computeVideoScore(b, signalsByVideo[b.id], now) -
-      computeVideoScore(a, signalsByVideo[a.id], now);
+    const scoreA =
+      computeVideoScore(a, signalsByVideo[a.id], now) +
+      (affinity ? computePersonalBoost(a, affinity) : 0);
+    const scoreB =
+      computeVideoScore(b, signalsByVideo[b.id], now) +
+      (affinity ? computePersonalBoost(b, affinity) : 0);
+    const scoreDiff = scoreB - scoreA;
     if (scoreDiff !== 0) return scoreDiff;
     return (b.createdAt ?? 0) - (a.createdAt ?? 0);
   });

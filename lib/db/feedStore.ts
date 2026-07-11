@@ -1,14 +1,45 @@
 /**
- * Step 2: identity + sessions on top of the file-backed feed store.
+ * Identity + sessions on top of the feed store.
  * Guests are auto-created; register/login upgrades to a real account.
  * Likes are per-user; comments carry the acting user's identity.
+ *
+ * Persistence (experimental): normalized SQLite tables via lib/db/sqliteBackend.ts
+ * (WAL; migrates legacy store.json / v1 JSON blob). Mutations use incremental SQL
+ * ops; full snapshot rewrite only for seed / legacy migration.
+ * In-memory document API unchanged.
  */
 
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Comment, Video } from '@/types/video';
-import { rankVideos, type VideoSignals } from '@/lib/db/ranking';
+import { rankVideos, type UserAffinity, type VideoSignals } from '@/lib/db/ranking';
+import {
+  closeSqliteStore,
+  migrateLegacyJsonIfNeeded,
+  readSqliteSnapshot,
+  writeSqliteSnapshot,
+} from '@/lib/db/sqliteBackend';
+import {
+  opAddComment,
+  opAppendMessage,
+  opDeleteSession,
+  opDeleteVideo,
+  opInsertConversation,
+  opInsertSession,
+  opInsertUserWithSession,
+  opInsertVideo,
+  opMarkConversationRead,
+  opMarkNotificationsRead,
+  opRecordShare,
+  opRecordSignal,
+  opRegisterUpgrade,
+  opToggleFollow,
+  opToggleLike,
+  opToggleSave,
+  opUpdateVideoFields,
+} from '@/lib/db/sqliteOps';
+import { publishDirectMessage } from '@/lib/realtime/conversationBus';
 
 export interface PublicUser {
   id: string;
@@ -32,6 +63,35 @@ export interface NotificationItem {
   createdAt: number;
 }
 
+/** 1:1 DM thread (experimental messaging MVP). */
+export interface ConversationRecord {
+  id: string;
+  /** Lexicographically smaller participant id */
+  userAId: string;
+  /** Lexicographically larger participant id */
+  userBId: string;
+  messages: DirectMessage[];
+  /** userId -> last-read message createdAt */
+  lastReadAtByUser: Record<string, number>;
+  updatedAt: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  createdAt: number;
+}
+
+export interface ConversationSummary {
+  id: string;
+  peer: PublicUser;
+  lastMessage: DirectMessage | null;
+  unreadCount: number;
+  updatedAt: number;
+}
+
 interface StoredUser extends PublicUser {
   passwordHash?: string;
   createdAt: number;
@@ -48,22 +108,21 @@ export interface FeedStoreData {
   savesByUser: Record<string, string[]>;
   /** videoId -> play/complete counters for ranking */
   signals: Record<string, VideoSignals>;
+  /** userId -> videoIds the viewer has played (personalization) */
+  playsByUser: Record<string, string[]>;
   /** followerUserId -> creatorIds they follow */
   follows: Record<string, string[]>;
   /** recipientUserId -> notifications (newest first) */
   notificationsByUser: Record<string, NotificationItem[]>;
+  /** 1:1 direct-message threads */
+  conversations: ConversationRecord[];
 }
 
 const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
-const DEFAULT_STORE_FILE = 'store.json';
 const SEED_PATH = path.join(process.cwd(), 'public/mock/seed.json');
 
 let memoryCache: FeedStoreData | null = null;
 let writeChain: Promise<void> = Promise.resolve();
-
-function storePath(dataDir = DEFAULT_DATA_DIR) {
-  return path.join(dataDir, DEFAULT_STORE_FILE);
-}
 
 function hashPassword(password: string, salt?: string) {
   const usedSalt = salt ?? randomBytes(16).toString('hex');
@@ -108,8 +167,8 @@ function pushNotification(
     videoId?: string;
     text?: string;
   }
-) {
-  if (!recipientId || recipientId === input.actorId) return;
+): NotificationItem | null {
+  if (!recipientId || recipientId === input.actorId) return null;
   const item: NotificationItem = {
     id: newId('n'),
     userId: recipientId,
@@ -124,6 +183,7 @@ function pushNotification(
   };
   const existing = store.notificationsByUser[recipientId] ?? [];
   store.notificationsByUser[recipientId] = [item, ...existing].slice(0, 100);
+  return item;
 }
 
 function actorFromStore(store: FeedStoreData, userId: string) {
@@ -152,6 +212,26 @@ function withUserContext(
   return { ...rest, liked, saved, isFollowing };
 }
 
+function buildUserAffinity(
+  store: FeedStoreData,
+  userId: string
+): UserAffinity {
+  const likedIds = store.likesByUser[userId] ?? [];
+  const byId = new Map(store.videos.map((v) => [v.id, v]));
+  const likedCreators = new Set<string>();
+  for (const id of likedIds) {
+    const creatorId = byId.get(id)?.creator.id;
+    if (creatorId) likedCreators.add(creatorId);
+  }
+  return {
+    followedCreators: new Set(store.follows[userId] ?? []),
+    likedCreators,
+    savedVideoIds: new Set(store.savesByUser[userId] ?? []),
+    likedVideoIds: new Set(likedIds),
+    playedVideoIds: new Set(store.playsByUser[userId] ?? []),
+  };
+}
+
 async function readSeed(): Promise<FeedStoreData> {
   const raw = await fs.readFile(SEED_PATH, 'utf-8');
   const seed = JSON.parse(raw) as {
@@ -162,6 +242,7 @@ async function readSeed(): Promise<FeedStoreData> {
   return {
     videos: seed.videos.map(({ liked: _l, saved: _s, isFollowing: _f, ...v }, index) => ({
       ...v,
+      status: v.status ?? 'ready',
       createdAt: v.createdAt ?? now - (seed.videos.length - index) * 3_600_000,
     })),
     comments: { ...seed.comments },
@@ -170,8 +251,10 @@ async function readSeed(): Promise<FeedStoreData> {
     likesByUser: {},
     savesByUser: {},
     signals: {},
+    playsByUser: {},
     follows: {},
     notificationsByUser: {},
+    conversations: [],
   };
 }
 
@@ -180,6 +263,7 @@ function migrate(data: Partial<FeedStoreData>): FeedStoreData {
   const videos = (data.videos ?? []).map(
     ({ liked: _l, saved: _s, isFollowing: _f, ...v }, index, arr) => ({
       ...(v as Video),
+      status: (v as Video).status ?? 'ready',
       createdAt:
         (v as Video).createdAt ?? now - (arr.length - index) * 3_600_000,
     })
@@ -192,8 +276,14 @@ function migrate(data: Partial<FeedStoreData>): FeedStoreData {
     likesByUser: data.likesByUser ?? {},
     savesByUser: data.savesByUser ?? {},
     signals: data.signals ?? {},
+    playsByUser: data.playsByUser ?? {},
     follows: data.follows ?? {},
     notificationsByUser: data.notificationsByUser ?? {},
+    conversations: (data.conversations ?? []).map((c) => ({
+      ...c,
+      messages: c.messages ?? [],
+      lastReadAtByUser: c.lastReadAtByUser ?? {},
+    })),
   };
 }
 
@@ -203,38 +293,44 @@ async function ensureStore(dataDir = DEFAULT_DATA_DIR): Promise<FeedStoreData> {
   }
 
   await fs.mkdir(dataDir, { recursive: true });
-  const file = storePath(dataDir);
 
-  try {
-    const raw = await fs.readFile(file, 'utf-8');
-    const parsed = migrate(JSON.parse(raw) as Partial<FeedStoreData>);
+  const fromSqlite = readSqliteSnapshot(dataDir);
+  if (fromSqlite) {
+    const parsed = migrate(fromSqlite);
     if (dataDir === DEFAULT_DATA_DIR) memoryCache = parsed;
     return parsed;
-  } catch {
-    const seeded = await readSeed();
-    await atomicWrite(file, seeded);
-    if (dataDir === DEFAULT_DATA_DIR) memoryCache = seeded;
-    return seeded;
   }
+
+  const fromLegacy = migrateLegacyJsonIfNeeded(dataDir);
+  if (fromLegacy) {
+    const parsed = migrate(fromLegacy);
+    if (dataDir === DEFAULT_DATA_DIR) memoryCache = parsed;
+    return parsed;
+  }
+
+  const seeded = await readSeed();
+  writeSqliteSnapshot(dataDir, seeded);
+  if (dataDir === DEFAULT_DATA_DIR) memoryCache = seeded;
+  return seeded;
 }
 
-async function atomicWrite(file: string, data: FeedStoreData) {
-  const tmp = `${file}.${process.pid}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8');
-  await fs.rename(tmp, file);
-}
-
-async function persist(data: FeedStoreData, dataDir = DEFAULT_DATA_DIR) {
+async function persistIncremental(
+  data: FeedStoreData,
+  dataDir: string,
+  op: () => void
+) {
   if (dataDir === DEFAULT_DATA_DIR) {
     memoryCache = data;
   }
-  const file = storePath(dataDir);
-  writeChain = writeChain.then(() => atomicWrite(file, data));
+  writeChain = writeChain.then(() => {
+    op();
+  });
   await writeChain;
 }
 
-export function resetStoreCache() {
+export function resetStoreCache(dataDir?: string) {
   memoryCache = null;
+  if (dataDir) closeSqliteStore(dataDir);
 }
 
 export async function createGuestUser(dataDir?: string): Promise<{ user: PublicUser; token: string }> {
@@ -247,9 +343,13 @@ export async function createGuestUser(dataDir?: string): Promise<{ user: PublicU
     createdAt: Date.now(),
   };
   const token = newSessionToken();
+  const sessionCreatedAt = Date.now();
   store.users.push(user);
-  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
-  await persist(store, dataDir);
+  store.sessions[token] = { userId: user.id, createdAt: sessionCreatedAt };
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opInsertUserWithSession(dir, user, token, sessionCreatedAt);
+  });
   return { user: toPublicUser(user), token };
 }
 
@@ -329,8 +429,12 @@ export async function registerUser(
     guest.isGuest = false;
     syncIdentityDisplay(store, guest);
     const token = newSessionToken();
-    store.sessions[token] = { userId: guest.id, createdAt: Date.now() };
-    await persist(store, dataDir);
+    const sessionCreatedAt = Date.now();
+    store.sessions[token] = { userId: guest.id, createdAt: sessionCreatedAt };
+    const dir = dataDir ?? DEFAULT_DATA_DIR;
+    await persistIncremental(store, dir, () => {
+      opRegisterUpgrade(dir, guest, token, sessionCreatedAt);
+    });
     return { user: toPublicUser(guest), token };
   }
 
@@ -343,9 +447,13 @@ export async function registerUser(
     createdAt: Date.now(),
   };
   const token = newSessionToken();
+  const sessionCreatedAt = Date.now();
   store.users.push(user);
-  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
-  await persist(store, dataDir);
+  store.sessions[token] = { userId: user.id, createdAt: sessionCreatedAt };
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opInsertUserWithSession(dir, user, token, sessionCreatedAt);
+  });
   return { user: toPublicUser(user), token };
 }
 
@@ -362,8 +470,12 @@ export async function loginUser(
     return { error: 'Invalid username or password', status: 401 };
   }
   const token = newSessionToken();
-  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
-  await persist(store, dataDir);
+  const sessionCreatedAt = Date.now();
+  store.sessions[token] = { userId: user.id, createdAt: sessionCreatedAt };
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opInsertSession(dir, token, user.id, sessionCreatedAt);
+  });
   return { user: toPublicUser(user), token };
 }
 
@@ -372,7 +484,10 @@ export async function logoutSession(token: string | null | undefined, dataDir?: 
   const store = await ensureStore(dataDir);
   if (store.sessions[token]) {
     delete store.sessions[token];
-    await persist(store, dataDir);
+    const dir = dataDir ?? DEFAULT_DATA_DIR;
+    await persistIncremental(store, dir, () => {
+      opDeleteSession(dir, token);
+    });
   }
 }
 
@@ -406,7 +521,16 @@ export async function listVideos(
   }
 
   const ranked =
-    feed === 'saved' ? pool : rankVideos(pool, store.signals);
+    feed === 'saved'
+      ? pool
+      : rankVideos(
+          pool,
+          store.signals,
+          Date.now(),
+          feed === 'foryou' && userId
+            ? buildUserAffinity(store, userId)
+            : undefined
+        );
 
   let startIndex = 0;
   if (cursor) {
@@ -504,17 +628,22 @@ export async function toggleFollow(
     set.add(creatorId);
   }
   store.follows[followerId] = Array.from(set);
+  let notification: NotificationItem | null = null;
   if (!currentlyFollowing) {
     const actor = actorFromStore(store, followerId);
     if (actor) {
-      pushNotification(store, creatorId, {
+      notification = pushNotification(store, creatorId, {
         type: 'follow',
         ...actor,
       });
     }
   }
-  await persist(store, dataDir);
-  return { ok: true, following: !currentlyFollowing };
+  const following = !currentlyFollowing;
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opToggleFollow(dir, followerId, creatorId, following, notification);
+  });
+  return { ok: true, following };
 }
 
 export interface CreatorProfile {
@@ -586,7 +715,8 @@ export async function getCreatorProfile(
 export async function recordSignal(
   videoId: string,
   type: 'play' | 'complete',
-  dataDir?: string
+  dataDir?: string,
+  userId?: string | null
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const store = await ensureStore(dataDir);
   if (!store.videos.some((v) => v.id === videoId)) {
@@ -597,7 +727,27 @@ export async function recordSignal(
   if (type === 'play') current.plays += 1;
   if (type === 'complete') current.completes += 1;
   store.signals[videoId] = current;
-  await persist(store, dataDir);
+
+  if (userId && type === 'play') {
+    const played = new Set(store.playsByUser[userId] ?? []);
+    played.add(videoId);
+    // Cap recent history so the snapshot stays bounded
+    store.playsByUser[userId] = Array.from(played).slice(-200);
+  }
+
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  const playedVideoIds =
+    userId && type === 'play' ? store.playsByUser[userId] : undefined;
+  await persistIncremental(store, dir, () => {
+    opRecordSignal(
+      dir,
+      videoId,
+      current.plays,
+      current.completes,
+      userId && type === 'play' ? userId : null,
+      playedVideoIds
+    );
+  });
   return { ok: true };
 }
 
@@ -622,19 +772,24 @@ export async function toggleLike(
     video.stats.likes += 1;
   }
   store.likesByUser[userId] = Array.from(likedSet);
+  let notification: NotificationItem | null = null;
   if (!currentlyLiked) {
     const actor = actorFromStore(store, userId);
     if (actor) {
-      pushNotification(store, video.creator.id, {
+      notification = pushNotification(store, video.creator.id, {
         type: 'like',
         ...actor,
         videoId,
       });
     }
   }
-  await persist(store, dataDir);
+  const liked = !currentlyLiked;
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opToggleLike(dir, userId, videoId, liked, video.stats.likes, notification);
+  });
 
-  return { ok: true, liked: !currentlyLiked, likes: video.stats.likes };
+  return { ok: true, liked, likes: video.stats.likes };
 }
 
 export async function recordShare(
@@ -647,7 +802,10 @@ export async function recordShare(
     return { ok: false, error: 'Video not found' };
   }
   video.stats.shares = (video.stats.shares ?? 0) + 1;
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opRecordShare(dir, videoId, video.stats.shares);
+  });
   return { ok: true, shares: video.stats.shares };
 }
 
@@ -669,9 +827,13 @@ export async function toggleSave(
     savedSet.add(videoId);
   }
   store.savesByUser[userId] = Array.from(savedSet);
-  await persist(store, dataDir);
+  const saved = !currentlySaved;
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opToggleSave(dir, userId, store.savesByUser[userId] ?? []);
+  });
 
-  return { ok: true, saved: !currentlySaved };
+  return { ok: true, saved };
 }
 
 export async function listComments(
@@ -763,7 +925,7 @@ export async function addComment(
   }
   store.comments[videoId] = [comment, ...store.comments[videoId]];
   video.stats.comments += 1;
-  pushNotification(store, video.creator.id, {
+  const notification = pushNotification(store, video.creator.id, {
     type: 'comment',
     actorId: user.id,
     actorUsername: user.username,
@@ -771,7 +933,16 @@ export async function addComment(
     videoId,
     text: trimmed.slice(0, 80),
   });
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opAddComment(
+      dir,
+      videoId,
+      comment,
+      video.stats.comments,
+      notification
+    );
+  });
 
   return comment;
 }
@@ -784,12 +955,15 @@ export async function createVideo(
     caption: string;
     user: PublicUser;
     musicTitle?: string;
+    status?: Video['status'];
+    progressiveSrc?: string;
+    id?: string;
   },
   dataDir?: string
 ): Promise<Video> {
   const store = await ensureStore(dataDir);
   const video: Video = {
-    id: newId('v'),
+    id: input.id ?? newId('v'),
     src: input.src,
     poster: input.poster,
     duration: input.duration,
@@ -807,13 +981,54 @@ export async function createVideo(
     stats: { likes: 0, comments: 0, shares: 0 },
     liked: false,
     createdAt: Date.now(),
+    status: input.status ?? 'ready',
+    progressiveSrc: input.progressiveSrc,
   };
 
   store.videos = [video, ...store.videos];
   store.comments[video.id] = [];
   store.signals[video.id] = { plays: 0, completes: 0 };
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opInsertVideo(dir, video);
+  });
   return video;
+}
+
+export async function updateVideoPlayback(
+  videoId: string,
+  patch: {
+    src?: string;
+    status?: Video['status'];
+    progressiveSrc?: string;
+  },
+  dataDir?: string
+): Promise<{ ok: true; video: Video } | { ok: false; error: string }> {
+  const store = await ensureStore(dataDir);
+  const video = store.videos.find((v) => v.id === videoId);
+  if (!video) return { ok: false, error: 'Video not found' };
+  if (patch.src !== undefined) video.src = patch.src;
+  if (patch.status !== undefined) video.status = patch.status;
+  if (patch.progressiveSrc !== undefined) {
+    video.progressiveSrc = patch.progressiveSrc;
+  }
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opUpdateVideoFields(dir, videoId, {
+      src: patch.src,
+      status: patch.status,
+      progressiveSrc: patch.progressiveSrc,
+    });
+  });
+  return { ok: true, video };
+}
+
+export async function getVideoById(
+  videoId: string,
+  dataDir?: string
+): Promise<Video | null> {
+  const store = await ensureStore(dataDir);
+  return store.videos.find((v) => v.id === videoId) ?? null;
 }
 
 export async function updateVideoCaption(
@@ -831,7 +1046,10 @@ export async function updateVideoCaption(
   const next = caption.trim();
   if (!next) return { ok: false, error: 'Caption required', status: 400 };
   video.caption = next.slice(0, 300);
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opUpdateVideoFields(dir, videoId, { caption: video.caption });
+  });
   return { ok: true, video };
 }
 
@@ -867,7 +1085,10 @@ export async function deleteVideo(
     ).filter((n) => n.videoId !== videoId);
   }
 
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opDeleteVideo(dir, videoId);
+  });
   return { ok: true };
 }
 
@@ -933,8 +1154,225 @@ export async function markNotificationsRead(
   }
   if (changed) {
     store.notificationsByUser[userId] = list;
-    await persist(store, dataDir);
+    await persistIncremental(store, dataDir ?? DEFAULT_DATA_DIR, () => {
+      opMarkNotificationsRead(dataDir ?? DEFAULT_DATA_DIR, userId, ids);
+    });
   }
   const unreadCount = list.filter((n) => !n.read).length;
   return { ok: true, unreadCount };
+}
+
+const MAX_MESSAGES_PER_THREAD = 200;
+const MAX_MESSAGE_LENGTH = 1000;
+
+function sortedPair(a: string, b: string): [string, string] {
+  return a < b ? [a, b] : [b, a];
+}
+
+function isParticipant(conv: ConversationRecord, userId: string) {
+  return conv.userAId === userId || conv.userBId === userId;
+}
+
+function peerIdOf(conv: ConversationRecord, userId: string) {
+  return conv.userAId === userId ? conv.userBId : conv.userAId;
+}
+
+function unreadInConversation(conv: ConversationRecord, userId: string) {
+  const lastRead = conv.lastReadAtByUser[userId] ?? 0;
+  return conv.messages.filter(
+    (m) => m.senderId !== userId && m.createdAt > lastRead
+  ).length;
+}
+
+function findConversation(
+  store: FeedStoreData,
+  userAId: string,
+  userBId: string
+) {
+  const [a, b] = sortedPair(userAId, userBId);
+  return store.conversations.find((c) => c.userAId === a && c.userBId === b);
+}
+
+function publicPeer(store: FeedStoreData, peerId: string): PublicUser | null {
+  const user = store.users.find((u) => u.id === peerId);
+  return user ? toPublicUser(user) : null;
+}
+
+export async function listConversations(
+  userId: string,
+  dataDir?: string
+): Promise<{ items: ConversationSummary[]; unreadCount: number }> {
+  const store = await ensureStore(dataDir);
+  const mine = store.conversations
+    .filter((c) => isParticipant(c, userId))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const items: ConversationSummary[] = [];
+  let unreadCount = 0;
+  for (const conv of mine) {
+    const peer = publicPeer(store, peerIdOf(conv, userId));
+    if (!peer) continue;
+    const unread = unreadInConversation(conv, userId);
+    unreadCount += unread;
+    items.push({
+      id: conv.id,
+      peer,
+      lastMessage: conv.messages[conv.messages.length - 1] ?? null,
+      unreadCount: unread,
+      updatedAt: conv.updatedAt,
+    });
+  }
+  return { items, unreadCount };
+}
+
+export async function getOrCreateConversation(
+  userId: string,
+  peerId: string,
+  dataDir?: string
+): Promise<
+  | { ok: true; conversation: ConversationSummary }
+  | { ok: false; error: string }
+> {
+  if (!peerId || peerId === userId) {
+    return { ok: false, error: 'Invalid peer' };
+  }
+  const store = await ensureStore(dataDir);
+  const me = store.users.find((u) => u.id === userId);
+  if (!me || me.isGuest) {
+    return { ok: false, error: 'Sign in to message' };
+  }
+  const peer = publicPeer(store, peerId);
+  if (!peer) {
+    return { ok: false, error: 'User not found' };
+  }
+
+  let conv = findConversation(store, userId, peerId);
+  if (!conv) {
+    const [a, b] = sortedPair(userId, peerId);
+    conv = {
+      id: newId('c'),
+      userAId: a,
+      userBId: b,
+      messages: [],
+      lastReadAtByUser: { [userId]: Date.now() },
+      updatedAt: Date.now(),
+    };
+    store.conversations.push(conv);
+    await persistIncremental(store, dataDir ?? DEFAULT_DATA_DIR, () => {
+      opInsertConversation(dataDir ?? DEFAULT_DATA_DIR, conv!);
+    });
+  }
+
+  return {
+    ok: true,
+    conversation: {
+      id: conv.id,
+      peer,
+      lastMessage: conv.messages[conv.messages.length - 1] ?? null,
+      unreadCount: unreadInConversation(conv, userId),
+      updatedAt: conv.updatedAt,
+    },
+  };
+}
+
+export async function listMessages(
+  conversationId: string,
+  userId: string,
+  limit = 50,
+  dataDir?: string
+): Promise<
+  | {
+      ok: true;
+      conversationId: string;
+      peer: PublicUser;
+      items: DirectMessage[];
+      unreadCount: number;
+    }
+  | { ok: false; error: string }
+> {
+  const store = await ensureStore(dataDir);
+  const conv = store.conversations.find((c) => c.id === conversationId);
+  if (!conv || !isParticipant(conv, userId)) {
+    return { ok: false, error: 'Conversation not found' };
+  }
+  const peer = publicPeer(store, peerIdOf(conv, userId));
+  if (!peer) {
+    return { ok: false, error: 'Peer not found' };
+  }
+  const items = conv.messages.slice(-Math.max(1, Math.min(limit, 200)));
+  return {
+    ok: true,
+    conversationId: conv.id,
+    peer,
+    items,
+    unreadCount: unreadInConversation(conv, userId),
+  };
+}
+
+export async function sendMessage(
+  conversationId: string,
+  userId: string,
+  text: string,
+  dataDir?: string
+): Promise<
+  | { ok: true; message: DirectMessage }
+  | { ok: false; error: string }
+> {
+  const trimmed = text.trim().slice(0, MAX_MESSAGE_LENGTH);
+  if (!trimmed) {
+    return { ok: false, error: 'Empty message' };
+  }
+  const store = await ensureStore(dataDir);
+  const me = store.users.find((u) => u.id === userId);
+  if (!me || me.isGuest) {
+    return { ok: false, error: 'Sign in to message' };
+  }
+  const conv = store.conversations.find((c) => c.id === conversationId);
+  if (!conv || !isParticipant(conv, userId)) {
+    return { ok: false, error: 'Conversation not found' };
+  }
+
+  const now = Date.now();
+  const message: DirectMessage = {
+    id: newId('m'),
+    conversationId: conv.id,
+    senderId: userId,
+    text: trimmed,
+    createdAt: now,
+  };
+  conv.messages.push(message);
+  if (conv.messages.length > MAX_MESSAGES_PER_THREAD) {
+    conv.messages = conv.messages.slice(-MAX_MESSAGES_PER_THREAD);
+  }
+  conv.updatedAt = now;
+  conv.lastReadAtByUser[userId] = now;
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  const keptIds = conv.messages.map((m) => m.id);
+  await persistIncremental(store, dir, () => {
+    opAppendMessage(dir, message, userId, now, keptIds);
+  });
+  publishDirectMessage(message, [conv.userAId, conv.userBId]);
+  return { ok: true, message };
+}
+
+export async function markConversationRead(
+  conversationId: string,
+  userId: string,
+  dataDir?: string
+): Promise<{ ok: true; unreadCount: number } | { ok: false; error: string }> {
+  const store = await ensureStore(dataDir);
+  const conv = store.conversations.find((c) => c.id === conversationId);
+  if (!conv || !isParticipant(conv, userId)) {
+    return { ok: false, error: 'Conversation not found' };
+  }
+  const last = conv.messages[conv.messages.length - 1];
+  const stamp = last?.createdAt ?? Date.now();
+  if ((conv.lastReadAtByUser[userId] ?? 0) < stamp) {
+    conv.lastReadAtByUser[userId] = stamp;
+    const dir = dataDir ?? DEFAULT_DATA_DIR;
+    await persistIncremental(store, dir, () => {
+      opMarkConversationRead(dir, conversationId, userId, stamp);
+    });
+  }
+  return { ok: true, unreadCount: unreadInConversation(conv, userId) };
 }

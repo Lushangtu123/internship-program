@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeVideoScore, rankVideos } from '@/lib/db/ranking';
+import {
+  computePersonalBoost,
+  computeVideoScore,
+  rankVideos,
+  type UserAffinity,
+} from '@/lib/db/ranking';
 import type { Video } from '@/types/video';
 
 function makeVideo(partial: Partial<Video> & { id: string }): Video {
@@ -12,6 +17,17 @@ function makeVideo(partial: Partial<Video> & { id: string }): Video {
     music: { title: 't', artist: 'a' },
     stats: { likes: 0, comments: 0, shares: 0 },
     createdAt: Date.now(),
+    ...partial,
+  };
+}
+
+function emptyAffinity(partial: Partial<UserAffinity> = {}): UserAffinity {
+  return {
+    followedCreators: new Set(),
+    likedCreators: new Set(),
+    savedVideoIds: new Set(),
+    likedVideoIds: new Set(),
+    playedVideoIds: new Set(),
     ...partial,
   };
 }
@@ -30,7 +46,9 @@ describe('ranking', () => {
       stats: { likes: 50, comments: 10, shares: 0 },
     });
 
-    expect(computeVideoScore(hot, { plays: 20, completes: 8 }, now)).toBeGreaterThan(
+    expect(
+      computeVideoScore(hot, { plays: 20, completes: 8 }, now)
+    ).toBeGreaterThan(
       computeVideoScore(quiet, { plays: 1, completes: 0 }, now)
     );
   });
@@ -60,5 +78,31 @@ describe('ranking', () => {
     );
 
     expect(ranked.map((v) => v.id)).toEqual(['fresh-hot', 'old-quiet']);
+  });
+
+  it('boosts followed creators for personalized ranking', () => {
+    const now = Date.now();
+    const followed = makeVideo({
+      id: 'followed',
+      createdAt: now,
+      creator: { id: 'u_follow', handle: '@f', avatar: '/a.png' },
+      stats: { likes: 0, comments: 0, shares: 0 },
+    });
+    const other = makeVideo({
+      id: 'other',
+      createdAt: now,
+      creator: { id: 'u_other', handle: '@o', avatar: '/a.png' },
+      stats: { likes: 2, comments: 0, shares: 0 },
+    });
+    const affinity = emptyAffinity({
+      followedCreators: new Set(['u_follow']),
+    });
+
+    expect(computePersonalBoost(followed, affinity)).toBeGreaterThan(
+      computePersonalBoost(other, affinity)
+    );
+
+    const ranked = rankVideos([other, followed], {}, now, affinity);
+    expect(ranked[0].id).toBe('followed');
   });
 });

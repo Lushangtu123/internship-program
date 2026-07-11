@@ -204,6 +204,116 @@
 - **结果**：作者可管自己的片；可按作者/文案搜索。提交：`001bb7c`
 - **后续**：异步上传 / 真数据库 / 个性化 / ABR 仍走实验分支。
 
+### 2026-07-11 — 实验：个性化 For You + 异步 HLS 上传
+
+- **问题**：For You 对所有人同一排序；上传要等整段 ffmpeg HLS 结束才返回，体验卡住。
+- **方法**（实验分支，未合 main）：
+  - 个性化：`UserAffinity`（关注/点赞创作者/收藏/已赞/已播）叠在全局分上；`playsByUser` 由 engagement 写入
+  - 异步上传：`acceptUploadedVideo` 先落盘 progressive + poster → `status=processing` 立刻返回；后台 `enqueueHlsTranscode` 完成后续改 `src` 为 m3u8 / `ready`
+  - `GET /api/videos/[id]` 可查 packaging 状态
+- **结果**：见本分支 PR。提交：`e36376a`
+- **后续**：对象存储 / 真数据库 / ABR 仍实验；确认后可合 main。
+
+### 2026-07-11 — 实验：SQLite 持久化替换 store.json
+
+- **问题**：整份 `store.json` 链式重写，并发 API 易撕裂；也不适合多实例。
+- **方法**（同实验分支）：
+  - Node 内置 `node:sqlite`（WAL）存 `store_snapshot` 原子快照
+  - `feedStore` API 不变，只换 `ensureStore` / `persist`
+  - 首次启动若仍有 `store.json` 则迁入 SQLite 并改名为 `.migrated`
+- **结果**：提交：`a5d02d8`；规范化表结构 / 对象存储 / ABR 仍后续。
+- **后续**：确认后可合 main；下一步优先对象存储或 ABR。
+
+### 2026-07-11 — 实验：对象存储抽象（local / S3）
+
+- **问题**：上传产物写死在 `public/uploads/`，多实例与 CDN 源站无法复用；异步 HLS 需要可替换的发布层。
+- **方法**（同实验分支）：
+  - `ObjectStore`：`put` / `putFile` / `putDirectory` / `publicUrl`
+  - `LocalObjectStore`（默认）与 `S3CompatibleObjectStore`（SigV4 PutObject，无 AWS SDK）
+  - `STORAGE_DRIVER=local|s3` + `.env.example`；上传管线经 `getObjectStore()` 发布 progressive / poster / HLS
+- **结果**：`333ac9c`。
+- **后续**：ABR；规范化 SQL 表结构；确认后可合 main。
+
+### 2026-07-11 — 实验：多码率 ABR HLS 阶梯
+
+- **问题**：上传只打单码率 HLS，弱网容易卡；播放器也无法按分辨率切换。
+- **方法**（同实验分支）：
+  - `ABR_LADDER`：360p / 480p / 720p + `master.m3u8`（`index.m3u8` 作别名）
+  - 阶梯失败回退单码率；`useHlsPlayback` 开启 `capLevelToPlayerSize` + 自动 startLevel
+- **结果**：`07db91f`。
+- **后续**：规范化 SQL 已落地（`9cb7235`）；确认后可合 main。
+
+### 2026-07-11 — 实验：规范化 SQLite 关系表
+
+- **问题**：v1 仍是整包 JSON blob，无法按用户/视频查询；备份与演进困难。
+- **方法**（同实验分支）：
+  - 关系表：`users` / `sessions` / `videos` / `comments` / `likes` / `saves` / `follows` / `signals` / `plays` / `notifications`
+  - `FeedStoreData` ↔ 表行映射；事务替换写入
+  - 自动迁移：`store.json` → v1 blob → v2 表；`feedStore` API 不变
+- **结果**：提交：`9cb7235`；`npm test` 64 通过。
+- **后续**：即时通讯 MVP；确认后可合 main。
+
+### 2026-07-11 — 实验：即时通讯 MVP（Inbox Messages）
+
+- **问题**：Inbox 只有活动通知，没有 1:1 私信；创作者主页无法发起对话。
+- **方法**（同实验分支）：
+  - 数据：`conversations` / `messages` / `conversation_reads` 表；`FeedStoreData.conversations`
+  - API：`GET/POST /api/conversations`、`GET/POST .../messages`、`POST ... action:read`
+  - UI：Inbox **Activity | Messages**；`/inbox/c/[id]` 会话页；主页 **Message** 按钮；底栏未读 = 通知 + 私信
+  - 规则：仅注册用户可发；游客引导登录；每会话最多 200 条；轮询刷新
+- **结果**：提交：`cc0e69e`；`npm test` 66 通过。
+- **后续**：按操作 SQL 写入；确认后可合 main；WebSocket 仍可选。
+
+### 2026-07-11 — 实验：热路径按操作 SQL 写入
+
+- **问题**：每次发私信 / 标已读仍整库 DELETE+重插，消息量大时浪费且易与其它表竞态。
+- **方法**（同实验分支）：
+  - 新增 `lib/db/sqliteOps.ts`：`opInsertConversation` / `opAppendMessage` / `opMarkConversationRead` / `opMarkNotificationsRead`
+  - `feedStore` 对上述热路径走 `persistIncremental`（仍串行化 writeChain）；其它变更仍全量快照
+  - 回归：发私信后 likes 行数不变
+- **结果**：提交：`1a48de3`；`npm test` 68 通过。
+- **后续**：点赞/评论/关注等迁到按操作写入；确认后可合 main；WebSocket 仍可选。
+
+### 2026-07-11 — 实验：互动热路径按操作 SQL 写入
+
+- **问题**：点赞/评论/关注/收藏/播放信号仍整库重写，高频互动浪费大。
+- **方法**（同实验分支）：
+  - 扩展 `sqliteOps`：`opToggleLike` / `opToggleFollow` / `opToggleSave` / `opAddComment` / `opRecordSignal` / `opRecordShare`（可附带通知插入）
+  - `feedStore` 上述路径全部走 `persistIncremental`
+  - 回归：互动后既有私信行不被抹掉
+- **结果**：提交：`765f305`；`npm test` 69 通过。
+- **后续**：私信 SSE 实时推送；确认后可合 main。
+
+### 2026-07-11 — 实验：私信 SSE 实时推送
+
+- **问题**：私信依赖 8–10s 轮询，对端回复体感滞后；多开标签也会空转请求。
+- **方法**（同实验分支）：
+  - 进程内 `conversationBus`（会话频道 + 用户频道）；`sendMessage` 成功后 fan-out
+  - SSE：`GET /api/conversations/[id]/events`、`GET /api/conversations/events`
+  - 客户端 `useConversationLive` / `useInboxLive`；连上后放慢轮询作兜底；会话头显示 Live
+- **结果**：提交：`67bc47e`；`npm test` 70 通过。
+- **后续**：鉴权/视频 CRUD 增量写入；确认后可合 main。
+
+### 2026-07-11 — 实验：鉴权与视频 CRUD 按操作 SQL 写入
+
+- **问题**：游客/注册/登录、上传与改删视频仍整库重写，与已增量的互动路径不一致。
+- **方法**（同实验分支）：
+  - `opInsertUserWithSession` / `opRegisterUpgrade` / `opInsertSession` / `opDeleteSession`
+  - `opInsertVideo` / `opUpdateVideoFields` / `opDeleteVideo`（级联清 likes/saves/comments/signals/plays/notifications）
+  - `feedStore` 可变路径全部 `persistIncremental`；全量快照仅保留 seed/迁移
+- **结果**：提交：`12c9ef1`；`npm test` 71 通过。
+- **后续**：多实例 DM Redis；确认后可合 main。
+
+### 2026-07-11 — 实验：多实例 DM Redis pub/sub
+
+- **问题**：SSE 总线仅进程内有效，多 Node 实例时对端收不到实时私信。
+- **方法**（同实验分支）：
+  - `REDIS_URL` 可选；`redisBridge` 订阅 `sv:dm`，带 `origin` 去重避免回声
+  - `conversationBus` 仍先本地 fan-out，再异步 publish；无 Redis 时行为不变
+  - `.env.example` 补充说明
+- **结果**：提交：`efe79aa`；`npm test` 74 通过。
+- **后续**：确认后可合 main。
+
 ---
 
 <!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->

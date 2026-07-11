@@ -38,8 +38,12 @@ next-env.d.ts
 # lighthouse
 .lighthouseci
 
-# local persistent feed store (Step 1)
+# local persistent feed store (Step 1 → SQLite experiment)
 /data/store.json
+/data/store.json.migrated
+/data/store.sqlite
+/data/store.sqlite-wal
+/data/store.sqlite-shm
 
 # user uploads (Step 3+)
 /public/uploads/videos/**
