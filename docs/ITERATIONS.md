@@ -338,7 +338,7 @@
 - **方法**：
   - `preferInboxTab` / `inboxHref`：仅私信未读 → Messages，否则 Activity
   - BottomNav 与裸 `/inbox` 共用规则；tab 旁显示未读小圆点
-- **结果**：待提交后回填。
+- **结果**：提交：`517cb6d`；`npm test` 80 通过。
 - **后续**：共享/多实例数据库；或其他产品 polish。
 
 ---
