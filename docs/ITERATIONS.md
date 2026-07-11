@@ -385,7 +385,7 @@
   - `unreadActivityNotificationIds` / `countActivityUnread`（`lib/inboxUnread.ts`）
   - InboxPanel 批量已读只传非 message ids
   - `useNotificationUnread` 只计 Activity（like/comment/follow）
-- **结果**：提交：`8f0f139`；`npm test` 85 通过；`npm test` 待跑。
+- **结果**：提交：`7d540ad`；`npm test` 85 通过。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ### 2026-07-11 — Fix：私信测试断言与合并行为对齐
