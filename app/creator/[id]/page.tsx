@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
-import { fetchCreatorProfile, toggleFollowCreator } from '@/lib/api';
+import { fetchCreatorProfile, fetchMe, toggleFollowCreator } from '@/lib/api';
 import { formatNumber } from '@/lib/utils';
 
 export default function CreatorProfilePage() {
@@ -20,10 +20,16 @@ export default function CreatorProfilePage() {
     enabled: !!creatorId,
   });
 
+  const { data: me } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: fetchMe,
+  });
+
   const [followPending, setFollowPending] = useState(false);
   const [following, setFollowing] = useState<boolean | null>(null);
 
   const isFollowing = following ?? data?.isFollowing ?? false;
+  const isSelf = Boolean(me?.id && data?.creator.id === me.id);
 
   const onFollow = async () => {
     if (!data || followPending) return;
@@ -120,18 +126,23 @@ export default function CreatorProfilePage() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onFollow}
-          disabled={followPending}
-          className={`mt-5 w-full rounded-md py-2.5 text-sm font-semibold disabled:opacity-60 ${
-            isFollowing
-              ? 'bg-white/15 text-white hover:bg-white/25'
-              : 'bg-white text-black hover:bg-white/90'
-          }`}
-        >
-          {isFollowing ? 'Following' : 'Follow'}
-        </button>
+        {!isSelf && (
+          <button
+            type="button"
+            onClick={onFollow}
+            disabled={followPending}
+            className={`mt-5 w-full rounded-md py-2.5 text-sm font-semibold disabled:opacity-60 ${
+              isFollowing
+                ? 'bg-white/15 text-white hover:bg-white/25'
+                : 'bg-white text-black hover:bg-white/90'
+            }`}
+          >
+            {isFollowing ? 'Following' : 'Follow'}
+          </button>
+        )}
+        {isSelf && (
+          <p className="mt-5 text-center text-sm text-white/50">This is you</p>
+        )}
       </section>
 
       <section className="border-t border-white/10 px-2 py-3">

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchMe, login, logout, register, type AuthUser } from '@/lib/api';
@@ -49,17 +50,29 @@ export function AuthBar() {
     await refresh();
   };
 
+  const identityLabel = isLoading
+    ? '…'
+    : user
+      ? user.isGuest
+        ? `Guest · ${user.username}`
+        : `@${user.username}`
+      : 'Signed out';
+
   return (
     <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
-      <div className="rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-xs text-white">
-        {isLoading
-          ? '…'
-          : user
-            ? user.isGuest
-              ? `Guest · ${user.username}`
-              : `@${user.username}`
-            : 'Signed out'}
-      </div>
+      {user ? (
+        <Link
+          href={`/creator/${user.id}`}
+          className="rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-xs text-white hover:bg-black/70"
+          aria-label="Open my profile"
+        >
+          {identityLabel}
+        </Link>
+      ) : (
+        <div className="rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-xs text-white">
+          {identityLabel}
+        </div>
+      )}
 
       {user && !user.isGuest ? (
         <button

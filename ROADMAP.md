@@ -79,6 +79,11 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - List API nests replies under top-level threads
 - Comments drawer: Reply / cancel chip + indented replies
 
+## Step 13 — Own profile entry ✅
+
+- AuthBar identity chip links to `/creator/[me]`
+- Profile page hides Follow when viewing yourself
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
