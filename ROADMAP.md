@@ -204,6 +204,11 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 - `markConversationRead` also marks matching `message` Activity rows as read
 - Opening a thread refreshes the notifications query so the badge/dot updates
 
+## Step 35 — Packaging Ready toast ✅
+
+- When a card leaves `processing` for `ready`, briefly show a green **Ready** badge
+- Failed transitions keep a failed cue; Processing… still shows while packing
+
 ## Later ideas (not scheduled)
 
 - Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)

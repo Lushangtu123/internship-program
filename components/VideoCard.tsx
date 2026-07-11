@@ -21,6 +21,7 @@ import {
   playbackSrcForVideo,
   useVideoPackagingPoll,
 } from '@/hooks/useVideoPackagingPoll';
+import { packagingStatusToast } from '@/lib/packagingStatusToast';
 
 interface VideoCardProps {
   video: Video;
@@ -49,6 +50,11 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const [showPauseIcon, setShowPauseIcon] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const shareToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [packagingToast, setPackagingToast] = useState<string | null>(null);
+  const packagingToastTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const prevPackagingStatus = useRef(video.status);
 
   const { isMuted, showCaptions, setActiveVideoId, toggleCaptions } = useUIStore();
 
@@ -70,8 +76,28 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   useEffect(() => {
     return () => {
       if (shareToastTimer.current) clearTimeout(shareToastTimer.current);
+      if (packagingToastTimer.current) clearTimeout(packagingToastTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    prevPackagingStatus.current = video.status;
+    setPackagingToast(null);
+  }, [video.id]);
+
+  useEffect(() => {
+    const toast = packagingStatusToast(
+      prevPackagingStatus.current,
+      video.status
+    );
+    prevPackagingStatus.current = video.status;
+    if (!toast) return;
+    setPackagingToast(toast);
+    if (packagingToastTimer.current) clearTimeout(packagingToastTimer.current);
+    packagingToastTimer.current = setTimeout(() => {
+      setPackagingToast(null);
+    }, 2200);
+  }, [video.status]);
 
   useEffect(() => {
     setLocalLiked(video.liked || false);
@@ -368,17 +394,24 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
         )}
       />
 
-      {(video.status === 'processing' || video.status === 'failed') && (
+      {(video.status === 'processing' ||
+        video.status === 'failed' ||
+        packagingToast) && (
         <div className="pointer-events-none absolute left-3 top-3 z-20">
           <span
             className={cn(
               'rounded-md px-2 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm backdrop-blur-sm',
-              video.status === 'processing'
-                ? 'bg-black/55'
-                : 'bg-rose-600/80'
+              packagingToast === 'Ready'
+                ? 'bg-emerald-600/85'
+                : video.status === 'processing' && !packagingToast
+                  ? 'bg-black/55'
+                  : 'bg-rose-600/80'
             )}
           >
-            {video.status === 'processing' ? 'Processing…' : 'Processing failed'}
+            {packagingToast ??
+              (video.status === 'processing'
+                ? 'Processing…'
+                : 'Processing failed')}
           </span>
         </div>
       )}
