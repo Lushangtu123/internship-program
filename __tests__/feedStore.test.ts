@@ -7,8 +7,10 @@ import {
   createGuestUser,
   createVideo,
   listComments,
+  listNotifications,
   listVideos,
   loginUser,
+  markNotificationsRead,
   recordSignal,
   registerUser,
   resetStoreCache,
@@ -171,5 +173,40 @@ describe('feedStore identity + persistence', () => {
     const forYou = await listVideos(null, 50, guest.user.id, dataDir, 'foryou');
     const sample = forYou.items.find((video) => video.creator.id === 'u_1');
     expect(sample?.isFollowing).toBe(true);
+  });
+
+  it('creates notifications for like, comment, and follow', async () => {
+    const creator = await createGuestUser(dataDir);
+    const viewer = await createGuestUser(dataDir);
+    const video = await createVideo(
+      {
+        src: '/uploads/videos/n.webm',
+        poster: '/uploads/posters/n.jpg',
+        duration: 3,
+        caption: 'notify me',
+        user: creator.user,
+      },
+      dataDir
+    );
+
+    await toggleLike(video.id, viewer.user.id, dataDir);
+    await addComment(video.id, 'nice clip', viewer.user, dataDir);
+    await toggleFollow(viewer.user.id, creator.user.id, dataDir);
+
+    const notes = await listNotifications(creator.user.id, 20, dataDir);
+    expect(notes.unreadCount).toBe(3);
+    expect(notes.items.map((n) => n.type).sort()).toEqual([
+      'comment',
+      'follow',
+      'like',
+    ]);
+
+    const selfLike = await listNotifications(viewer.user.id, 20, dataDir);
+    expect(selfLike.items).toHaveLength(0);
+
+    await markNotificationsRead(creator.user.id, undefined, dataDir);
+    const after = await listNotifications(creator.user.id, 20, dataDir);
+    expect(after.unreadCount).toBe(0);
+    expect(after.items.every((n) => n.read)).toBe(true);
   });
 });

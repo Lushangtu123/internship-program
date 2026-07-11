@@ -43,9 +43,15 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Top tabs: **For You** / **Following**
 - Follow button on each video card
 
+## Step 9 — Notifications ✅
+
+- Like / comment / follow events write in-app notifications (no self-notify)
+- `GET /api/notifications` + `POST /api/notifications` (`action: read`)
+- Bell UI with unread badge on the feed
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
 - Real object storage + CDN origin
-- Creator profiles and notifications
+- Creator profiles
 - Messaging / inbox
