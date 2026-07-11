@@ -55,7 +55,7 @@ export function ActionsBar({
           />
         </div>
         <span className="text-xs text-white font-semibold">
-          {formatNumber(stats.likes + (liked ? 1 : 0))}
+          {formatNumber(stats.likes)}
         </span>
       </button>
 

@@ -20,12 +20,18 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const manuallyPausedRef = useRef(false); // Use ref for immediate access
   const [localLiked, setLocalLiked] = useState(video.liked || false);
+  const [localLikes, setLocalLikes] = useState(video.stats.likes);
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const [showControls, setShowControls] = useState(false);
   const [showPauseIcon, setShowPauseIcon] = useState(false);
   
   const { isMuted, showCaptions, setActiveVideoId } = useUIStore();
+
+  useEffect(() => {
+    setLocalLiked(video.liked || false);
+    setLocalLikes(video.stats.likes);
+  }, [video.id, video.liked, video.stats.likes]);
 
   // Sync mute state with video element
   useEffect(() => {
@@ -123,13 +129,18 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const handleLike = async () => {
     const newLiked = !localLiked;
     setLocalLiked(newLiked);
+    setLocalLikes((n) => Math.max(0, n + (newLiked ? 1 : -1)));
 
     try {
-      await likeVideo(video.id);
+      const result = await likeVideo(video.id);
+      if (typeof result.likes === 'number') {
+        setLocalLikes(result.likes);
+      }
+      setLocalLiked(result.liked);
     } catch (error) {
-      // Rollback on error
       console.error('Failed to like video:', error);
       setLocalLiked(!newLiked);
+      setLocalLikes((n) => Math.max(0, n + (newLiked ? -1 : 1)));
     }
   };
 
@@ -286,7 +297,7 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
           {/* Right: Actions Bar */}
           <div className="flex-shrink-0">
             <ActionsBar
-              stats={video.stats}
+              stats={{ ...video.stats, likes: localLikes }}
               liked={localLiked}
               onLike={handleLike}
               onComment={onCommentClick}

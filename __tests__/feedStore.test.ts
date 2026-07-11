@@ -4,13 +4,16 @@ import { tmpdir } from 'os';
 import path from 'path';
 import {
   addComment,
+  createGuestUser,
   listComments,
   listVideos,
+  loginUser,
+  registerUser,
   resetStoreCache,
   toggleLike,
 } from '@/lib/db/feedStore';
 
-describe('feedStore (persistent local data layer)', () => {
+describe('feedStore identity + persistence', () => {
   let dataDir: string;
 
   beforeEach(async () => {
@@ -24,48 +27,69 @@ describe('feedStore (persistent local data layer)', () => {
   });
 
   it('lists videos with cursor pagination from seed', async () => {
-    const page1 = await listVideos(null, 2, dataDir);
+    const page1 = await listVideos(null, 2, null, dataDir);
     expect(page1.items).toHaveLength(2);
     expect(page1.nextCursor).toBeTruthy();
 
-    const page2 = await listVideos(page1.nextCursor, 2, dataDir);
+    const page2 = await listVideos(page1.nextCursor, 2, null, dataDir);
     expect(page2.items[0].id).not.toBe(page1.items[0].id);
   });
 
-  it('persists like toggles across cache resets', async () => {
-    const first = await toggleLike('v_001', dataDir);
-    expect(first.ok).toBe(true);
-    if (!first.ok) return;
+  it('keeps likes per user', async () => {
+    const a = await createGuestUser(dataDir);
+    const b = await createGuestUser(dataDir);
 
-    expect(first.liked).toBe(true);
+    const liked = await toggleLike('v_001', a.user.id, dataDir);
+    expect(liked.ok && liked.liked).toBe(true);
+
+    const forA = await listVideos(null, 1, a.user.id, dataDir);
+    const forB = await listVideos(null, 1, b.user.id, dataDir);
+    expect(forA.items[0].liked).toBe(true);
+    expect(forB.items[0].liked).toBe(false);
 
     resetStoreCache();
-    const page = await listVideos(null, 1, dataDir);
-    expect(page.items[0].id).toBe('v_001');
-    expect(page.items[0].liked).toBe(true);
+    const forAAgain = await listVideos(null, 1, a.user.id, dataDir);
+    expect(forAAgain.items[0].liked).toBe(true);
 
     const raw = await readFile(path.join(dataDir, 'store.json'), 'utf-8');
-    expect(raw).toContain('"liked": true');
+    expect(raw).toContain(a.user.id);
   });
 
-  it('persists new comments and increments comment count', async () => {
-    const created = await addComment('v_001', 'hello persistent world', dataDir);
+  it('attaches comment author from the acting user', async () => {
+    const registered = await registerUser('alice', 'secret12', dataDir);
+    expect('user' in registered).toBe(true);
+    if (!('user' in registered)) return;
+
+    const created = await addComment(
+      'v_001',
+      'hello from alice',
+      registered.user,
+      dataDir
+    );
     expect('id' in created).toBe(true);
     if (!('id' in created)) return;
+    expect(created.username).toBe('alice');
+    expect(created.userId).toBe(registered.user.id);
 
-    resetStoreCache();
     const listed = await listComments('v_001', null, 20, dataDir);
-    expect('items' in listed).toBe(true);
-    if (!('items' in listed)) return;
+    expect('items' in listed && listed.items[0].username).toBe('alice');
+  });
 
-    expect(listed.items[0].text).toBe('hello persistent world');
+  it('registers and logs in with password', async () => {
+    const created = await registerUser('bob', 'secret12', dataDir);
+    expect('token' in created).toBe(true);
 
-    const page = await listVideos(null, 1, dataDir);
-    expect(page.items[0].stats.comments).toBeGreaterThanOrEqual(1);
+    const loggedIn = await loginUser('bob', 'secret12', dataDir);
+    expect('user' in loggedIn && loggedIn.user.username).toBe('bob');
+    expect('user' in loggedIn && loggedIn.user.isGuest).toBe(false);
+
+    const bad = await loginUser('bob', 'wrong-password', dataDir);
+    expect(bad).toMatchObject({ status: 401 });
   });
 
   it('rejects empty comments', async () => {
-    const result = await addComment('v_001', '   ', dataDir);
+    const guest = await createGuestUser(dataDir);
+    const result = await addComment('v_001', '   ', guest.user, dataDir);
     expect(result).toMatchObject({ status: 400 });
   });
 });

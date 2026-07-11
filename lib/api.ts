@@ -8,6 +8,62 @@ import {
 
 const API_BASE = '/api';
 
+async function apiFetch(input: string, init?: RequestInit) {
+  const response = await fetch(input, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      ...(init?.headers ?? {}),
+    },
+  });
+  return response;
+}
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  avatar: string;
+  isGuest: boolean;
+}
+
+export async function fetchMe(): Promise<AuthUser> {
+  const response = await apiFetch(`${API_BASE}/auth`);
+  if (!response.ok) throw new Error('Failed to fetch session');
+  const data = await response.json();
+  return data.user;
+}
+
+export async function register(username: string, password: string): Promise<AuthUser> {
+  const response = await apiFetch(`${API_BASE}/auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'register', username, password }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Register failed');
+  return data.user;
+}
+
+export async function login(username: string, password: string): Promise<AuthUser> {
+  const response = await apiFetch(`${API_BASE}/auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'login', username, password }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Login failed');
+  return data.user;
+}
+
+export async function logout(): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'logout' }),
+  });
+  if (!response.ok) throw new Error('Logout failed');
+}
+
 export async function fetchVideos(
   cursor?: string | null,
   limit: number = 5
@@ -16,13 +72,13 @@ export async function fetchVideos(
   if (cursor) params.set('cursor', cursor);
   params.set('limit', limit.toString());
 
-  const response = await fetch(`${API_BASE}/videos?${params}`);
+  const response = await apiFetch(`${API_BASE}/videos?${params}`);
   if (!response.ok) throw new Error('Failed to fetch videos');
   return response.json();
 }
 
 export async function likeVideo(videoId: string): Promise<LikeResponse> {
-  const response = await fetch(`${API_BASE}/videos/${videoId}/like`, {
+  const response = await apiFetch(`${API_BASE}/videos/${videoId}/like`, {
     method: 'POST',
   });
   if (!response.ok) throw new Error('Failed to like video');
@@ -38,7 +94,7 @@ export async function fetchComments(
   if (cursor) params.set('cursor', cursor);
   params.set('limit', limit.toString());
 
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE}/videos/${videoId}/comments?${params}`
   );
   if (!response.ok) throw new Error('Failed to fetch comments');
@@ -49,7 +105,7 @@ export async function postComment(
   videoId: string,
   text: string
 ): Promise<Comment> {
-  const response = await fetch(`${API_BASE}/videos/${videoId}/comments`, {
+  const response = await apiFetch(`${API_BASE}/videos/${videoId}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
@@ -57,4 +113,3 @@ export async function postComment(
   if (!response.ok) throw new Error('Failed to post comment');
   return response.json();
 }
-

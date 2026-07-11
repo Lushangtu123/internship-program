@@ -1,16 +1,33 @@
 /**
- * Step 1 data layer: file-backed JSON store for videos, likes, and comments.
- * Seeds from public/mock/seed.json on first run; persists mutations across restarts.
- * No auth / upload / HLS yet — intentionally local-only foundation.
+ * Step 2: identity + sessions on top of the file-backed feed store.
+ * Guests are auto-created; register/login upgrades to a real account.
+ * Likes are per-user; comments carry the acting user's identity.
  */
 
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Comment, Video } from '@/types/video';
 
+export interface PublicUser {
+  id: string;
+  username: string;
+  avatar: string;
+  isGuest: boolean;
+}
+
+interface StoredUser extends PublicUser {
+  passwordHash?: string;
+  createdAt: number;
+}
+
 export interface FeedStoreData {
   videos: Video[];
   comments: Record<string, Comment[]>;
+  users: StoredUser[];
+  sessions: Record<string, { userId: string; createdAt: number }>;
+  /** userId -> videoIds liked by that user */
+  likesByUser: Record<string, string[]>;
 }
 
 const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
@@ -24,6 +41,44 @@ function storePath(dataDir = DEFAULT_DATA_DIR) {
   return path.join(dataDir, DEFAULT_STORE_FILE);
 }
 
+function hashPassword(password: string, salt?: string) {
+  const usedSalt = salt ?? randomBytes(16).toString('hex');
+  const hash = scryptSync(password, usedSalt, 32).toString('hex');
+  return `${usedSalt}:${hash}`;
+}
+
+function verifyPassword(password: string, stored: string) {
+  const [salt, hash] = stored.split(':');
+  if (!salt || !hash) return false;
+  const next = scryptSync(password, salt, 32);
+  const prev = Buffer.from(hash, 'hex');
+  if (prev.length !== next.length) return false;
+  return timingSafeEqual(prev, next);
+}
+
+function newId(prefix: string) {
+  return `${prefix}_${Date.now().toString(36)}_${randomBytes(4).toString('hex')}`;
+}
+
+function newSessionToken() {
+  return createHash('sha256').update(randomBytes(32)).digest('hex');
+}
+
+function toPublicUser(user: StoredUser): PublicUser {
+  return {
+    id: user.id,
+    username: user.username,
+    avatar: user.avatar,
+    isGuest: user.isGuest,
+  };
+}
+
+function withUserLiked(video: Video, userId: string | null, likesByUser: FeedStoreData['likesByUser']): Video {
+  const liked = userId ? (likesByUser[userId] ?? []).includes(video.id) : false;
+  const { liked: _ignored, ...rest } = video;
+  return { ...rest, liked };
+}
+
 async function readSeed(): Promise<FeedStoreData> {
   const raw = await fs.readFile(SEED_PATH, 'utf-8');
   const seed = JSON.parse(raw) as {
@@ -31,8 +86,21 @@ async function readSeed(): Promise<FeedStoreData> {
     comments: Record<string, Comment[]>;
   };
   return {
-    videos: seed.videos.map((v) => ({ ...v, liked: v.liked ?? false })),
+    videos: seed.videos.map(({ liked: _l, ...v }) => v),
     comments: { ...seed.comments },
+    users: [],
+    sessions: {},
+    likesByUser: {},
+  };
+}
+
+function migrate(data: Partial<FeedStoreData>): FeedStoreData {
+  return {
+    videos: (data.videos ?? []).map(({ liked: _l, ...v }) => v as Video),
+    comments: data.comments ?? {},
+    users: data.users ?? [],
+    sessions: data.sessions ?? {},
+    likesByUser: data.likesByUser ?? {},
   };
 }
 
@@ -46,7 +114,7 @@ async function ensureStore(dataDir = DEFAULT_DATA_DIR): Promise<FeedStoreData> {
 
   try {
     const raw = await fs.readFile(file, 'utf-8');
-    const parsed = JSON.parse(raw) as FeedStoreData;
+    const parsed = migrate(JSON.parse(raw) as Partial<FeedStoreData>);
     if (dataDir === DEFAULT_DATA_DIR) memoryCache = parsed;
     return parsed;
   } catch {
@@ -72,14 +140,98 @@ async function persist(data: FeedStoreData, dataDir = DEFAULT_DATA_DIR) {
   await writeChain;
 }
 
-/** Test helper: clear in-memory cache between cases */
 export function resetStoreCache() {
   memoryCache = null;
+}
+
+export async function createGuestUser(dataDir?: string): Promise<{ user: PublicUser; token: string }> {
+  const store = await ensureStore(dataDir);
+  const user: StoredUser = {
+    id: newId('u'),
+    username: `guest_${randomBytes(3).toString('hex')}`,
+    avatar: '/avatars/default.png',
+    isGuest: true,
+    createdAt: Date.now(),
+  };
+  const token = newSessionToken();
+  store.users.push(user);
+  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
+  await persist(store, dataDir);
+  return { user: toPublicUser(user), token };
+}
+
+export async function getUserBySession(
+  token: string | null | undefined,
+  dataDir?: string
+): Promise<PublicUser | null> {
+  if (!token) return null;
+  const store = await ensureStore(dataDir);
+  const session = store.sessions[token];
+  if (!session) return null;
+  const user = store.users.find((u) => u.id === session.userId);
+  return user ? toPublicUser(user) : null;
+}
+
+export async function registerUser(
+  username: string,
+  password: string,
+  dataDir?: string
+): Promise<{ user: PublicUser; token: string } | { error: string; status: number }> {
+  const name = username.trim();
+  if (name.length < 3) return { error: 'Username must be at least 3 characters', status: 400 };
+  if (password.length < 6) return { error: 'Password must be at least 6 characters', status: 400 };
+
+  const store = await ensureStore(dataDir);
+  if (store.users.some((u) => u.username.toLowerCase() === name.toLowerCase() && !u.isGuest)) {
+    return { error: 'Username already taken', status: 409 };
+  }
+
+  const user: StoredUser = {
+    id: newId('u'),
+    username: name,
+    passwordHash: hashPassword(password),
+    avatar: '/avatars/default.png',
+    isGuest: false,
+    createdAt: Date.now(),
+  };
+  const token = newSessionToken();
+  store.users.push(user);
+  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
+  await persist(store, dataDir);
+  return { user: toPublicUser(user), token };
+}
+
+export async function loginUser(
+  username: string,
+  password: string,
+  dataDir?: string
+): Promise<{ user: PublicUser; token: string } | { error: string; status: number }> {
+  const store = await ensureStore(dataDir);
+  const user = store.users.find(
+    (u) => !u.isGuest && u.username.toLowerCase() === username.trim().toLowerCase()
+  );
+  if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
+    return { error: 'Invalid username or password', status: 401 };
+  }
+  const token = newSessionToken();
+  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
+  await persist(store, dataDir);
+  return { user: toPublicUser(user), token };
+}
+
+export async function logoutSession(token: string | null | undefined, dataDir?: string) {
+  if (!token) return;
+  const store = await ensureStore(dataDir);
+  if (store.sessions[token]) {
+    delete store.sessions[token];
+    await persist(store, dataDir);
+  }
 }
 
 export async function listVideos(
   cursor: string | null,
   limit: number,
+  userId?: string | null,
   dataDir?: string
 ): Promise<{ items: Video[]; nextCursor: string | null }> {
   const store = await ensureStore(dataDir);
@@ -91,7 +243,8 @@ export async function listVideos(
     startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
   }
 
-  const items = videos.slice(startIndex, startIndex + limit);
+  const slice = videos.slice(startIndex, startIndex + limit);
+  const items = slice.map((v) => withUserLiked(v, userId ?? null, store.likesByUser));
   const nextCursor =
     startIndex + limit < videos.length
       ? videos[startIndex + limit - 1].id
@@ -102,6 +255,7 @@ export async function listVideos(
 
 export async function toggleLike(
   videoId: string,
+  userId: string,
   dataDir?: string
 ): Promise<{ ok: true; liked: boolean; likes: number } | { ok: false; error: string }> {
   const store = await ensureStore(dataDir);
@@ -110,12 +264,19 @@ export async function toggleLike(
     return { ok: false, error: 'Video not found' };
   }
 
-  const nextLiked = !video.liked;
-  video.liked = nextLiked;
-  video.stats.likes = Math.max(0, video.stats.likes + (nextLiked ? 1 : -1));
+  const likedSet = new Set(store.likesByUser[userId] ?? []);
+  const currentlyLiked = likedSet.has(videoId);
+  if (currentlyLiked) {
+    likedSet.delete(videoId);
+    video.stats.likes = Math.max(0, video.stats.likes - 1);
+  } else {
+    likedSet.add(videoId);
+    video.stats.likes += 1;
+  }
+  store.likesByUser[userId] = Array.from(likedSet);
   await persist(store, dataDir);
 
-  return { ok: true, liked: nextLiked, likes: video.stats.likes };
+  return { ok: true, liked: !currentlyLiked, likes: video.stats.likes };
 }
 
 export async function listComments(
@@ -148,6 +309,7 @@ export async function listComments(
 export async function addComment(
   videoId: string,
   text: string,
+  user: PublicUser,
   dataDir?: string
 ): Promise<Comment | { error: string; status: number }> {
   const trimmed = text?.trim() ?? '';
@@ -162,10 +324,10 @@ export async function addComment(
   }
 
   const comment: Comment = {
-    id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    userId: 'u_guest',
-    username: 'you',
-    userAvatar: '/avatars/default.png',
+    id: newId('c'),
+    userId: user.id,
+    username: user.username,
+    userAvatar: user.avatar,
     text: trimmed,
     timestamp: Date.now(),
     likes: 0,

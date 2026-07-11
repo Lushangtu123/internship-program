@@ -138,7 +138,7 @@ internship-program/
 | `POST` | `/api/videos/:id/comments` | Post a comment |
 | `POST` | `/api/telemetry` | QoE telemetry |
 
-APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Likes and comments survive server restarts. Auth, upload, and HLS are intentionally out of scope for Step 1.
+APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Guests get an httpOnly session cookie automatically; register/login upgrades the identity. Likes are per-user. Upload and HLS are intentionally out of scope until later roadmap steps.
 
 ## Configuration
 
