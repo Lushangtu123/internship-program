@@ -5,7 +5,7 @@ We improve toward a TikTok-like product **one step at a time**.
 
 ## Step 1 — Persistent local data layer ✅
 
-- File-backed store at `data/store.json` (seeded from `public/mock/seed.json`)
+- File-backed store at `data/store.sqlite` (seeded from `public/mock/seed.json`; legacy `store.json` migrated once)
 - Likes and comments persist across restarts
 - API routes use `lib/db/feedStore.ts`
 
@@ -172,9 +172,11 @@ We improve toward a TikTok-like product **one step at a time**.
 - Multi-bitrate ABR ladders
 - Real object storage + CDN origin
 - Messaging / inbox
+- Normalized SQL schema (beyond snapshot blob)
 
-## Experimental (branch) — Personalized For You + async HLS
+## Experimental (branch) — Personalized For You + async HLS + SQLite
 
 - Affinity boosts on For You from follows / liked creators / saves / plays
 - Upload returns progressive playback immediately (`status=processing`); HLS packages in background
+- Persist feed state in SQLite WAL (`data/store.sqlite`) instead of rewriting `store.json`
 - Branch: `cursor/personalize-async-upload-8729`

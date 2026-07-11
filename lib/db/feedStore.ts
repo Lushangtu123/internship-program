@@ -1,7 +1,10 @@
 /**
- * Step 2: identity + sessions on top of the file-backed feed store.
+ * Identity + sessions on top of the feed store.
  * Guests are auto-created; register/login upgrades to a real account.
  * Likes are per-user; comments carry the acting user's identity.
+ *
+ * Persistence (experimental): SQLite WAL snapshot via lib/db/sqliteBackend.ts
+ * (replaces chained store.json rewrites). In-memory document API unchanged.
  */
 
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
@@ -9,6 +12,12 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { Comment, Video } from '@/types/video';
 import { rankVideos, type UserAffinity, type VideoSignals } from '@/lib/db/ranking';
+import {
+  closeSqliteStore,
+  migrateLegacyJsonIfNeeded,
+  readSqliteSnapshot,
+  writeSqliteSnapshot,
+} from '@/lib/db/sqliteBackend';
 
 export interface PublicUser {
   id: string;
@@ -57,15 +66,10 @@ export interface FeedStoreData {
 }
 
 const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
-const DEFAULT_STORE_FILE = 'store.json';
 const SEED_PATH = path.join(process.cwd(), 'public/mock/seed.json');
 
 let memoryCache: FeedStoreData | null = null;
 let writeChain: Promise<void> = Promise.resolve();
-
-function storePath(dataDir = DEFAULT_DATA_DIR) {
-  return path.join(dataDir, DEFAULT_STORE_FILE);
-}
 
 function hashPassword(password: string, salt?: string) {
   const usedSalt = salt ?? randomBytes(16).toString('hex');
@@ -229,38 +233,41 @@ async function ensureStore(dataDir = DEFAULT_DATA_DIR): Promise<FeedStoreData> {
   }
 
   await fs.mkdir(dataDir, { recursive: true });
-  const file = storePath(dataDir);
 
-  try {
-    const raw = await fs.readFile(file, 'utf-8');
-    const parsed = migrate(JSON.parse(raw) as Partial<FeedStoreData>);
+  const fromSqlite = readSqliteSnapshot(dataDir);
+  if (fromSqlite) {
+    const parsed = migrate(fromSqlite);
     if (dataDir === DEFAULT_DATA_DIR) memoryCache = parsed;
     return parsed;
-  } catch {
-    const seeded = await readSeed();
-    await atomicWrite(file, seeded);
-    if (dataDir === DEFAULT_DATA_DIR) memoryCache = seeded;
-    return seeded;
   }
-}
 
-async function atomicWrite(file: string, data: FeedStoreData) {
-  const tmp = `${file}.${process.pid}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8');
-  await fs.rename(tmp, file);
+  const fromLegacy = migrateLegacyJsonIfNeeded(dataDir);
+  if (fromLegacy) {
+    const parsed = migrate(fromLegacy);
+    if (dataDir === DEFAULT_DATA_DIR) memoryCache = parsed;
+    return parsed;
+  }
+
+  const seeded = await readSeed();
+  writeSqliteSnapshot(dataDir, seeded);
+  if (dataDir === DEFAULT_DATA_DIR) memoryCache = seeded;
+  return seeded;
 }
 
 async function persist(data: FeedStoreData, dataDir = DEFAULT_DATA_DIR) {
   if (dataDir === DEFAULT_DATA_DIR) {
     memoryCache = data;
   }
-  const file = storePath(dataDir);
-  writeChain = writeChain.then(() => atomicWrite(file, data));
+  // Serialize writes so concurrent API handlers don't interleave snapshots.
+  writeChain = writeChain.then(() => {
+    writeSqliteSnapshot(dataDir, data);
+  });
   await writeChain;
 }
 
-export function resetStoreCache() {
+export function resetStoreCache(dataDir?: string) {
   memoryCache = null;
+  if (dataDir) closeSqliteStore(dataDir);
 }
 
 export async function createGuestUser(dataDir?: string): Promise<{ user: PublicUser; token: string }> {
@@ -637,7 +644,7 @@ export async function recordSignal(
   if (userId && type === 'play') {
     const played = new Set(store.playsByUser[userId] ?? []);
     played.add(videoId);
-    // Cap recent history so store.json stays bounded
+    // Cap recent history so the snapshot stays bounded
     store.playsByUser[userId] = Array.from(played).slice(-200);
   }
 

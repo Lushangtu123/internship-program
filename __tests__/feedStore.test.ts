@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, readFile } from 'fs/promises';
+import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import {
@@ -30,12 +30,11 @@ describe('feedStore identity + persistence', () => {
   let dataDir: string;
 
   beforeEach(async () => {
-    resetStoreCache();
     dataDir = await mkdtemp(path.join(tmpdir(), 'feed-store-'));
   });
 
   afterEach(async () => {
-    resetStoreCache();
+    resetStoreCache(dataDir);
     await rm(dataDir, { recursive: true, force: true });
   });
 
@@ -60,12 +59,13 @@ describe('feedStore identity + persistence', () => {
     expect(forA.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
     expect(forB.items.find((v) => v.id === 'v_001')?.liked).toBe(false);
 
-    resetStoreCache();
+    resetStoreCache(dataDir);
     const forAAgain = await listVideos(null, 50, a.user.id, dataDir);
     expect(forAAgain.items.find((v) => v.id === 'v_001')?.liked).toBe(true);
 
-    const raw = await readFile(path.join(dataDir, 'store.json'), 'utf-8');
-    expect(raw).toContain(a.user.id);
+    const { readSqliteSnapshot } = await import('@/lib/db/sqliteBackend');
+    const snap = readSqliteSnapshot(dataDir);
+    expect(JSON.stringify(snap)).toContain(a.user.id);
   });
 
   it('increments share count on a video', async () => {
@@ -73,7 +73,7 @@ describe('feedStore identity + persistence', () => {
     const base = before.items.find((v) => v.id === 'v_001')?.stats.shares ?? 0;
     const shared = await recordShare('v_001', dataDir);
     expect(shared.ok && shared.shares).toBe(base + 1);
-    resetStoreCache();
+    resetStoreCache(dataDir);
     const after = await listVideos(null, 50, null, dataDir);
     expect(after.items.find((v) => v.id === 'v_001')?.stats.shares).toBe(base + 1);
   });

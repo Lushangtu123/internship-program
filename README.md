@@ -113,7 +113,7 @@ internship-program/
 ├── lib/
 ├── types/
 ├── data/                    # Local persistent store (Step 1)
-│   └── store.json           # Created at runtime from seed
+│   └── store.sqlite         # Created at runtime (SQLite WAL snapshot)
 ├── public/
 │   ├── mock/seed.json
 │   ├── videos/              # Local sample WebM clips
@@ -145,7 +145,7 @@ internship-program/
 | `POST` | `/api/notifications` | Mark notifications read |
 | `POST` | `/api/telemetry` | QoE telemetry |
 
-APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Guests get an httpOnly session cookie automatically; **register upgrades the current guest in place** (same user id — likes, saves, follows, and uploads are kept). Logging into a different account switches identity. Likes and saves are per-user. Users can upload videos via `POST /api/videos/upload` — files are stored under `public/uploads/`, packaged to **HLS** (with progressive fallback), and played via native HLS or `hls.js`; a successful publish jumps the feed to the new clip (`/?v=`). The **For You** feed is ranked by engagement + freshness; **Following** shows creators you follow (with suggested creators when empty); **Saved** shows your bookmarks. Tap a creator avatar or handle to open `/creator/[id]`. Likes, comments, and follows generate in-app notifications (Inbox); tap a row to open the video or profile (comment rows also open the comments drawer).
+APIs are backed by a **local persistent store** (`data/store.sqlite` via Node SQLite WAL; legacy `store.json` is migrated once). Guests get an httpOnly session cookie automatically; **register upgrades the current guest in place** (same user id — likes, saves, follows, and uploads are kept). Logging into a different account switches identity. Likes and saves are per-user. Users can upload videos via `POST /api/videos/upload` — files are stored under `public/uploads/`, packaged to **HLS** (with progressive fallback), and played via native HLS or `hls.js`; a successful publish jumps the feed to the new clip (`/?v=`). The **For You** feed is ranked by engagement + freshness; **Following** shows creators you follow (with suggested creators when empty); **Saved** shows your bookmarks. Tap a creator avatar or handle to open `/creator/[id]`. Likes, comments, and follows generate in-app notifications (Inbox); tap a row to open the video or profile (comment rows also open the comments drawer).
 
 ## Configuration
 
