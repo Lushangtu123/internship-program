@@ -15,7 +15,7 @@ import { fetchVideos } from '@/lib/api';
 import { useVideoPrefetch } from '@/lib/usePrefetch';
 import { qoeLogger } from '@/lib/qoe';
 import { findVideoIndex } from '@/lib/deepLink';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function FeedPageContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,6 +25,7 @@ function FeedPageContent() {
   const containerRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef<string | null>(null);
   const commentsDeepLinkHandledRef = useRef<string | null>(null);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get('v');
   const openCommentsFromLink = searchParams.get('c') === '1';
@@ -305,7 +306,16 @@ function FeedPageContent() {
           setSheet((s) => (s === 'inbox' ? null : 'inbox'))
         }
       />
-      <UploadSheet open={sheet === 'upload'} onClose={() => setSheet(null)} />
+      <UploadSheet
+        open={sheet === 'upload'}
+        onClose={() => setSheet(null)}
+        onUploaded={(videoId) => {
+          setSheet(null);
+          setFeedMode('foryou');
+          deepLinkHandledRef.current = null;
+          router.replace(`/?v=${encodeURIComponent(videoId)}`);
+        }}
+      />
       <NotificationSheet
         open={sheet === 'inbox'}
         onClose={() => setSheet(null)}

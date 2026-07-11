@@ -109,6 +109,11 @@ We improve toward a TikTok-like product **one step at a time**.
 - Posting / loading comments patches React Query `videos` (and creator) caches
 - Action-bar comment badge stays in sync with the drawer
 
+## Step 17 — Jump to video after upload ✅
+
+- Successful publish closes the upload sheet
+- Navigates to `/?v={newId}` on For You so the new clip plays immediately
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

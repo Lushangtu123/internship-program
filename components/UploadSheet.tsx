@@ -6,9 +6,11 @@ import { useQueryClient } from '@tanstack/react-query';
 interface UploadSheetProps {
   open: boolean;
   onClose: () => void;
+  /** Called with the new video id after a successful publish */
+  onUploaded?: (videoId: string) => void;
 }
 
-export function UploadSheet({ open, onClose }: UploadSheetProps) {
+export function UploadSheet({ open, onClose, onUploaded }: UploadSheetProps) {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [caption, setCaption] = useState('');
@@ -46,11 +48,17 @@ export function UploadSheet({ open, onClose }: UploadSheetProps) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Upload failed');
-      setDone(data.video?.id ?? 'uploaded');
+      const videoId = data.video?.id as string | undefined;
       setCaption('');
       setFile(null);
       if (inputRef.current) inputRef.current.value = '';
       await queryClient.invalidateQueries({ queryKey: ['videos'] });
+      if (videoId) {
+        setDone(videoId);
+        onUploaded?.(videoId);
+      } else {
+        setDone('uploaded');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -97,7 +105,11 @@ export function UploadSheet({ open, onClose }: UploadSheetProps) {
           onChange={(e) => setCaption(e.target.value)}
         />
         {error && <p className="mb-2 text-xs text-red-300">{error}</p>}
-        {done && <p className="mb-2 text-xs text-emerald-300">Uploaded {done}</p>}
+        {done && (
+          <p className="mb-2 text-xs text-emerald-300">
+            Published — opening your video…
+          </p>
+        )}
         <button
           type="submit"
           disabled={pending}
