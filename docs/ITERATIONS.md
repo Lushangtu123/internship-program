@@ -366,7 +366,7 @@
 - **方法**：
   - `markConversationRead` 把同 `conversationId` 的 `message` 通知标已读
   - 会话页打开时刷新 `notifications` 查询
-- **结果**：待提交后回填。
+- **结果**：提交：`0a181ad`；`npm test` 80 通过。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---
