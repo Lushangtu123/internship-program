@@ -7,7 +7,7 @@ import type {
   DirectMessage,
   NotificationItem,
 } from '@/lib/db/feedStore';
-import type { Comment } from '@/types/video';
+import type { Comment, Video } from '@/types/video';
 import { openSqliteStore } from '@/lib/db/sqliteBackend';
 import { ensureRelationalSchema } from '@/lib/db/sqliteRelStore';
 
@@ -332,6 +332,220 @@ export function opRecordShare(
   stampUpdatedAt(db);
 }
 
+export type StoredUserRow = {
+  id: string;
+  username: string;
+  avatar: string;
+  isGuest: boolean;
+  passwordHash?: string;
+  createdAt: number;
+};
+
+export function opInsertUser(dataDir: string, user: StoredUserRow) {
+  withTxn(dataDir, (db) => {
+    db.prepare(
+      `INSERT INTO users (id, username, avatar, is_guest, password_hash, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(
+      user.id,
+      user.username,
+      user.avatar,
+      user.isGuest ? 1 : 0,
+      user.passwordHash ?? null,
+      user.createdAt
+    );
+  });
+}
+
+export function opUpdateUser(dataDir: string, user: StoredUserRow) {
+  withTxn(dataDir, (db) => {
+    db.prepare(
+      `UPDATE users
+       SET username = ?, avatar = ?, is_guest = ?, password_hash = ?
+       WHERE id = ?`
+    ).run(
+      user.username,
+      user.avatar,
+      user.isGuest ? 1 : 0,
+      user.passwordHash ?? null,
+      user.id
+    );
+  });
+}
+
+export function opInsertSession(
+  dataDir: string,
+  token: string,
+  userId: string,
+  createdAt: number
+) {
+  const db = openSqliteStore(dataDir);
+  ensureRelationalSchema(db);
+  db.prepare(
+    `INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)`
+  ).run(token, userId, createdAt);
+  stampUpdatedAt(db);
+}
+
+export function opDeleteSession(dataDir: string, token: string) {
+  const db = openSqliteStore(dataDir);
+  ensureRelationalSchema(db);
+  db.prepare(`DELETE FROM sessions WHERE token = ?`).run(token);
+  stampUpdatedAt(db);
+}
+
+/** Register upgrade: update user row, insert session, refresh denormalized names. */
+export function opRegisterUpgrade(
+  dataDir: string,
+  user: StoredUserRow,
+  token: string,
+  sessionCreatedAt: number
+) {
+  withTxn(dataDir, (db) => {
+    db.prepare(
+      `UPDATE users
+       SET username = ?, avatar = ?, is_guest = ?, password_hash = ?
+       WHERE id = ?`
+    ).run(
+      user.username,
+      user.avatar,
+      user.isGuest ? 1 : 0,
+      user.passwordHash ?? null,
+      user.id
+    );
+    db.prepare(
+      `INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)`
+    ).run(token, user.id, sessionCreatedAt);
+
+    const handle = `@${user.username}`;
+    db.prepare(
+      `UPDATE videos
+       SET creator_handle = ?, creator_name = ?, creator_avatar = ?, music_artist = ?
+       WHERE creator_id = ?`
+    ).run(handle, user.username, user.avatar, user.username, user.id);
+    db.prepare(
+      `UPDATE comments SET username = ?, user_avatar = ? WHERE user_id = ?`
+    ).run(user.username, user.avatar, user.id);
+    db.prepare(
+      `UPDATE notifications
+       SET actor_username = ?, actor_avatar = ?
+       WHERE actor_id = ?`
+    ).run(user.username, user.avatar, user.id);
+  });
+}
+
+export function opInsertUserWithSession(
+  dataDir: string,
+  user: StoredUserRow,
+  token: string,
+  sessionCreatedAt: number
+) {
+  withTxn(dataDir, (db) => {
+    db.prepare(
+      `INSERT INTO users (id, username, avatar, is_guest, password_hash, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(
+      user.id,
+      user.username,
+      user.avatar,
+      user.isGuest ? 1 : 0,
+      user.passwordHash ?? null,
+      user.createdAt
+    );
+    db.prepare(
+      `INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)`
+    ).run(token, user.id, sessionCreatedAt);
+  });
+}
+
+export function opInsertVideo(dataDir: string, video: Video) {
+  withTxn(dataDir, (db) => {
+    db.prepare(`UPDATE videos SET position = position + 1`).run();
+    db.prepare(
+      `INSERT INTO videos (
+        id, src, poster, duration, caption,
+        creator_id, creator_handle, creator_avatar, creator_name,
+        music_title, music_artist,
+        likes, comments, shares, captions_vtt, status, progressive_src,
+        created_at, position
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+    ).run(
+      video.id,
+      video.src,
+      video.poster,
+      video.duration,
+      video.caption,
+      video.creator.id,
+      video.creator.handle,
+      video.creator.avatar,
+      video.creator.name ?? null,
+      video.music.title,
+      video.music.artist,
+      video.stats.likes,
+      video.stats.comments,
+      video.stats.shares,
+      video.captionsVtt ?? null,
+      video.status ?? null,
+      video.progressiveSrc ?? null,
+      video.createdAt ?? null
+    );
+    db.prepare(
+      `INSERT INTO signals (video_id, plays, completes) VALUES (?, 0, 0)
+       ON CONFLICT(video_id) DO NOTHING`
+    ).run(video.id);
+  });
+}
+
+export function opUpdateVideoFields(
+  dataDir: string,
+  videoId: string,
+  patch: {
+    src?: string;
+    status?: string | null;
+    progressiveSrc?: string | null;
+    caption?: string;
+  }
+) {
+  withTxn(dataDir, (db) => {
+    if (patch.src !== undefined) {
+      db.prepare(`UPDATE videos SET src = ? WHERE id = ?`).run(
+        patch.src,
+        videoId
+      );
+    }
+    if (patch.status !== undefined) {
+      db.prepare(`UPDATE videos SET status = ? WHERE id = ?`).run(
+        patch.status,
+        videoId
+      );
+    }
+    if (patch.progressiveSrc !== undefined) {
+      db.prepare(`UPDATE videos SET progressive_src = ? WHERE id = ?`).run(
+        patch.progressiveSrc,
+        videoId
+      );
+    }
+    if (patch.caption !== undefined) {
+      db.prepare(`UPDATE videos SET caption = ? WHERE id = ?`).run(
+        patch.caption,
+        videoId
+      );
+    }
+  });
+}
+
+export function opDeleteVideo(dataDir: string, videoId: string) {
+  withTxn(dataDir, (db) => {
+    db.prepare(`DELETE FROM comments WHERE video_id = ?`).run(videoId);
+    db.prepare(`DELETE FROM likes WHERE video_id = ?`).run(videoId);
+    db.prepare(`DELETE FROM saves WHERE video_id = ?`).run(videoId);
+    db.prepare(`DELETE FROM signals WHERE video_id = ?`).run(videoId);
+    db.prepare(`DELETE FROM plays WHERE video_id = ?`).run(videoId);
+    db.prepare(`DELETE FROM notifications WHERE video_id = ?`).run(videoId);
+    db.prepare(`DELETE FROM videos WHERE id = ?`).run(videoId);
+  });
+}
+
 /** Test helper: count rows without loading the full store. */
 export function countTableRows(dataDir: string, table: string): number {
   const allowed = new Set([
@@ -346,6 +560,7 @@ export function countTableRows(dataDir: string, table: string): number {
     'conversations',
     'signals',
     'plays',
+    'sessions',
   ]);
   if (!allowed.has(table)) {
     throw new Error(`table not allowed: ${table}`);

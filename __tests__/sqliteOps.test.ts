@@ -212,4 +212,44 @@ describe('sqliteOps incremental writes', () => {
       ['comment', 'follow', 'like']
     );
   });
+
+  it('creates users and videos without wiping likes', async () => {
+    const likesBefore = countTableRows(dataDir, 'likes');
+    const { opInsertUserWithSession, opInsertVideo } = await import(
+      '@/lib/db/sqliteOps'
+    );
+    opInsertUserWithSession(
+      dataDir,
+      {
+        id: 'u_3',
+        username: 'cara',
+        avatar: '/c.png',
+        isGuest: true,
+        createdAt: 9,
+      },
+      'tok_3',
+      9
+    );
+    opInsertVideo(dataDir, {
+      id: 'v_new',
+      src: '/n.mp4',
+      poster: '/np.jpg',
+      duration: 2,
+      creator: { id: 'u_3', handle: '@cara', avatar: '/c.png', name: 'cara' },
+      caption: 'fresh',
+      music: { title: 'Original Sound', artist: 'cara' },
+      stats: { likes: 0, comments: 0, shares: 0 },
+      createdAt: 10,
+      status: 'ready',
+    });
+
+    expect(countTableRows(dataDir, 'likes')).toBe(likesBefore);
+    expect(countTableRows(dataDir, 'users')).toBeGreaterThanOrEqual(3);
+    expect(countTableRows(dataDir, 'videos')).toBeGreaterThanOrEqual(2);
+
+    const { readSqliteSnapshot } = await import('@/lib/db/sqliteBackend');
+    const loaded = readSqliteSnapshot(dataDir);
+    expect(loaded?.videos[0]?.id).toBe('v_new');
+    expect(loaded?.likesByUser.u_1).toEqual(['v_1']);
+  });
 });

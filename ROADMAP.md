@@ -170,7 +170,6 @@ We improve toward a TikTok-like product **one step at a time**.
 ## Later ideas (not scheduled)
 
 - Multi-instance DM fan-out (Redis pub/sub)
-- Incremental SQL for upload / auth / video CRUD (still snapshot today)
 
 ## Experimental (branch) — productization stack
 
@@ -180,6 +179,6 @@ We improve toward a TikTok-like product **one step at a time**.
 - Object storage abstraction: local `public/uploads` (default) or S3-compatible via `STORAGE_DRIVER=s3`
 - Multi-bitrate ABR HLS ladder (360p / 480p / 720p) with master playlist; hls.js caps level to player size
 - **Messaging MVP**: Inbox Activity | Messages; 1:1 DMs; creator Message button; unread badge combines notifications + DMs
-- **Incremental SQL ops** for DMs, notification read, likes, follows, saves, comments, play signals, shares
+- **Incremental SQL ops** for engagement, DMs, auth, and video CRUD (full snapshot only for seed/migration)
 - **DM SSE realtime** (in-process bus; polling fallback; Live indicator)
 - Branch: `cursor/personalize-async-upload-8729`

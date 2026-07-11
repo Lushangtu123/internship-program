@@ -292,7 +292,17 @@
   - SSE：`GET /api/conversations/[id]/events`、`GET /api/conversations/events`
   - 客户端 `useConversationLive` / `useInboxLive`；连上后放慢轮询作兜底；会话头显示 Live
 - **结果**：提交：`67bc47e`；`npm test` 70 通过。
-- **后续**：多实例需换 Redis pub/sub；确认后可合 main。
+- **后续**：鉴权/视频 CRUD 增量写入；确认后可合 main。
+
+### 2026-07-11 — 实验：鉴权与视频 CRUD 按操作 SQL 写入
+
+- **问题**：游客/注册/登录、上传与改删视频仍整库重写，与已增量的互动路径不一致。
+- **方法**（同实验分支）：
+  - `opInsertUserWithSession` / `opRegisterUpgrade` / `opInsertSession` / `opDeleteSession`
+  - `opInsertVideo` / `opUpdateVideoFields` / `opDeleteVideo`（级联清 likes/saves/comments/signals/plays/notifications）
+  - `feedStore` 可变路径全部 `persistIncremental`；全量快照仅保留 seed/迁移
+- **结果**：待提交后回填。
+- **后续**：多实例 DM 需 Redis；确认后可合 main。
 
 ---
 

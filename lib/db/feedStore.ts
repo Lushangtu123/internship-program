@@ -4,8 +4,8 @@
  * Likes are per-user; comments carry the acting user's identity.
  *
  * Persistence (experimental): normalized SQLite tables via lib/db/sqliteBackend.ts
- * (WAL; migrates legacy store.json / v1 JSON blob). Hot engagement / DM paths use
- * incremental SQL ops; upload/auth/video CRUD still rewrite snapshots.
+ * (WAL; migrates legacy store.json / v1 JSON blob). Mutations use incremental SQL
+ * ops; full snapshot rewrite only for seed / legacy migration.
  * In-memory document API unchanged.
  */
 
@@ -23,14 +23,21 @@ import {
 import {
   opAddComment,
   opAppendMessage,
+  opDeleteSession,
+  opDeleteVideo,
   opInsertConversation,
+  opInsertSession,
+  opInsertUserWithSession,
+  opInsertVideo,
   opMarkConversationRead,
   opMarkNotificationsRead,
   opRecordShare,
   opRecordSignal,
+  opRegisterUpgrade,
   opToggleFollow,
   opToggleLike,
   opToggleSave,
+  opUpdateVideoFields,
 } from '@/lib/db/sqliteOps';
 import { publishDirectMessage } from '@/lib/realtime/conversationBus';
 
@@ -307,18 +314,6 @@ async function ensureStore(dataDir = DEFAULT_DATA_DIR): Promise<FeedStoreData> {
   return seeded;
 }
 
-async function persist(data: FeedStoreData, dataDir = DEFAULT_DATA_DIR) {
-  if (dataDir === DEFAULT_DATA_DIR) {
-    memoryCache = data;
-  }
-  // Serialize writes so concurrent API handlers don't interleave snapshots.
-  writeChain = writeChain.then(() => {
-    writeSqliteSnapshot(dataDir, data);
-  });
-  await writeChain;
-}
-
-/** Keep memory cache warm and run an incremental SQL write on the chain. */
 async function persistIncremental(
   data: FeedStoreData,
   dataDir: string,
@@ -348,9 +343,13 @@ export async function createGuestUser(dataDir?: string): Promise<{ user: PublicU
     createdAt: Date.now(),
   };
   const token = newSessionToken();
+  const sessionCreatedAt = Date.now();
   store.users.push(user);
-  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
-  await persist(store, dataDir);
+  store.sessions[token] = { userId: user.id, createdAt: sessionCreatedAt };
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opInsertUserWithSession(dir, user, token, sessionCreatedAt);
+  });
   return { user: toPublicUser(user), token };
 }
 
@@ -430,8 +429,12 @@ export async function registerUser(
     guest.isGuest = false;
     syncIdentityDisplay(store, guest);
     const token = newSessionToken();
-    store.sessions[token] = { userId: guest.id, createdAt: Date.now() };
-    await persist(store, dataDir);
+    const sessionCreatedAt = Date.now();
+    store.sessions[token] = { userId: guest.id, createdAt: sessionCreatedAt };
+    const dir = dataDir ?? DEFAULT_DATA_DIR;
+    await persistIncremental(store, dir, () => {
+      opRegisterUpgrade(dir, guest, token, sessionCreatedAt);
+    });
     return { user: toPublicUser(guest), token };
   }
 
@@ -444,9 +447,13 @@ export async function registerUser(
     createdAt: Date.now(),
   };
   const token = newSessionToken();
+  const sessionCreatedAt = Date.now();
   store.users.push(user);
-  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
-  await persist(store, dataDir);
+  store.sessions[token] = { userId: user.id, createdAt: sessionCreatedAt };
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opInsertUserWithSession(dir, user, token, sessionCreatedAt);
+  });
   return { user: toPublicUser(user), token };
 }
 
@@ -463,8 +470,12 @@ export async function loginUser(
     return { error: 'Invalid username or password', status: 401 };
   }
   const token = newSessionToken();
-  store.sessions[token] = { userId: user.id, createdAt: Date.now() };
-  await persist(store, dataDir);
+  const sessionCreatedAt = Date.now();
+  store.sessions[token] = { userId: user.id, createdAt: sessionCreatedAt };
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opInsertSession(dir, token, user.id, sessionCreatedAt);
+  });
   return { user: toPublicUser(user), token };
 }
 
@@ -473,7 +484,10 @@ export async function logoutSession(token: string | null | undefined, dataDir?: 
   const store = await ensureStore(dataDir);
   if (store.sessions[token]) {
     delete store.sessions[token];
-    await persist(store, dataDir);
+    const dir = dataDir ?? DEFAULT_DATA_DIR;
+    await persistIncremental(store, dir, () => {
+      opDeleteSession(dir, token);
+    });
   }
 }
 
@@ -974,7 +988,10 @@ export async function createVideo(
   store.videos = [video, ...store.videos];
   store.comments[video.id] = [];
   store.signals[video.id] = { plays: 0, completes: 0 };
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opInsertVideo(dir, video);
+  });
   return video;
 }
 
@@ -995,7 +1012,14 @@ export async function updateVideoPlayback(
   if (patch.progressiveSrc !== undefined) {
     video.progressiveSrc = patch.progressiveSrc;
   }
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opUpdateVideoFields(dir, videoId, {
+      src: patch.src,
+      status: patch.status,
+      progressiveSrc: patch.progressiveSrc,
+    });
+  });
   return { ok: true, video };
 }
 
@@ -1022,7 +1046,10 @@ export async function updateVideoCaption(
   const next = caption.trim();
   if (!next) return { ok: false, error: 'Caption required', status: 400 };
   video.caption = next.slice(0, 300);
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opUpdateVideoFields(dir, videoId, { caption: video.caption });
+  });
   return { ok: true, video };
 }
 
@@ -1058,7 +1085,10 @@ export async function deleteVideo(
     ).filter((n) => n.videoId !== videoId);
   }
 
-  await persist(store, dataDir);
+  const dir = dataDir ?? DEFAULT_DATA_DIR;
+  await persistIncremental(store, dir, () => {
+    opDeleteVideo(dir, videoId);
+  });
   return { ok: true };
 }
 
