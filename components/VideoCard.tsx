@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Play, Pause, Volume2, VolumeX, MoreVertical } from 'lucide-react';
 import { Video } from '@/types/video';
 import { ActionsBar } from './ActionsBar';
@@ -9,7 +9,7 @@ import { CaptionBadge } from './CaptionBadge';
 import { useAutoplay } from '@/lib/useAutoplay';
 import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
-import { likeVideo, toggleFollowCreator } from '@/lib/api';
+import { fetchMe, likeVideo, toggleFollowCreator } from '@/lib/api';
 import { trackComplete, trackPlay } from '@/lib/trackEngagement';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +21,11 @@ interface VideoCardProps {
 
 export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
   const queryClient = useQueryClient();
+  const { data: me } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: fetchMe,
+  });
+  const isOwnVideo = Boolean(me?.id && me.id === video.creator.id);
   const videoRef = useRef<HTMLVideoElement>(null);
   const manuallyPausedRef = useRef(false); // Use ref for immediate access
   const [localLiked, setLocalLiked] = useState(video.liked || false);
@@ -171,7 +176,7 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
 
   const handleFollow = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (followPending) return;
+    if (followPending || isOwnVideo) return;
     const next = !localFollowing;
     setLocalFollowing(next);
     setFollowPending(true);
@@ -179,6 +184,7 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
       const result = await toggleFollowCreator(video.creator.id);
       setLocalFollowing(result.following);
       await queryClient.invalidateQueries({ queryKey: ['videos'] });
+      await queryClient.invalidateQueries({ queryKey: ['creators', 'suggested'] });
     } catch (error) {
       console.error('Failed to toggle follow:', error);
       setLocalFollowing(!next);
@@ -323,19 +329,21 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
                 <span className="font-semibold text-white truncate">
                   {video.creator.handle}
                 </span>
-                <button
-                  type="button"
-                  onClick={handleFollow}
-                  disabled={followPending}
-                  className={cn(
-                    'px-4 py-1 rounded-md text-sm font-semibold flex-shrink-0 disabled:opacity-60',
-                    localFollowing
-                      ? 'bg-white/20 text-white hover:bg-white/30'
-                      : 'bg-primary hover:bg-primary/90 text-white'
-                  )}
-                >
-                  {localFollowing ? 'Following' : 'Follow'}
-                </button>
+                {!isOwnVideo && (
+                  <button
+                    type="button"
+                    onClick={handleFollow}
+                    disabled={followPending}
+                    className={cn(
+                      'px-4 py-1 rounded-md text-sm font-semibold flex-shrink-0 disabled:opacity-60',
+                      localFollowing
+                        ? 'bg-white/20 text-white hover:bg-white/30'
+                        : 'bg-primary hover:bg-primary/90 text-white'
+                    )}
+                  >
+                    {localFollowing ? 'Following' : 'Follow'}
+                  </button>
+                )}
               </div>
             </div>
 

@@ -8,6 +8,7 @@ import { DebugPanel } from '@/components/DebugPanel';
 import { AuthBar } from '@/components/AuthBar';
 import { UploadButton } from '@/components/UploadButton';
 import { FeedTabs } from '@/components/FeedTabs';
+import { FollowingEmptyState } from '@/components/FollowingEmptyState';
 import { useKeyboardShortcuts } from '@/lib/keyboard';
 import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
@@ -176,16 +177,16 @@ function FeedPageContent() {
         style={{ scrollSnapType: 'y mandatory' }}
       >
         {videos.length === 0 ? (
-          <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
-            <p className="text-lg font-semibold">
-              {feedMode === 'following' ? 'No following videos yet' : 'No videos'}
-            </p>
-            <p className="text-sm text-white/60">
-              {feedMode === 'following'
-                ? 'Follow creators on For You, then check back here.'
-                : 'Upload a video to get started.'}
-            </p>
-          </div>
+          feedMode === 'following' ? (
+            <FollowingEmptyState onGoForYou={() => setFeedMode('foryou')} />
+          ) : (
+            <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
+              <p className="text-lg font-semibold">No videos</p>
+              <p className="text-sm text-white/60">
+                Upload a video to get started.
+              </p>
+            </div>
+          )
         ) : (
           videos.map((video, index) => (
             <VideoCard

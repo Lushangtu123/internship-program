@@ -7,6 +7,7 @@ import {
   createGuestUser,
   createVideo,
   listComments,
+  listSuggestedCreators,
   listVideos,
   loginUser,
   recordSignal,
@@ -171,5 +172,28 @@ describe('feedStore identity + persistence', () => {
     const forYou = await listVideos(null, 50, guest.user.id, dataDir, 'foryou');
     const sample = forYou.items.find((video) => video.creator.id === 'u_1');
     expect(sample?.isFollowing).toBe(true);
+  });
+
+  it('suggests creators not yet followed and excludes self', async () => {
+    const guest = await createGuestUser(dataDir);
+    await createVideo(
+      {
+        src: '/uploads/videos/mine.webm',
+        poster: '/uploads/posters/mine.jpg',
+        duration: 2,
+        caption: 'mine',
+        user: guest.user,
+      },
+      dataDir
+    );
+
+    const before = await listSuggestedCreators(guest.user.id, 10, dataDir);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.every((c) => c.id !== guest.user.id)).toBe(true);
+    expect(before.every((c) => !c.isFollowing)).toBe(true);
+
+    await toggleFollow(guest.user.id, before[0].id, dataDir);
+    const after = await listSuggestedCreators(guest.user.id, 10, dataDir);
+    expect(after.every((c) => c.id !== before[0].id)).toBe(true);
   });
 });
