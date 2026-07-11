@@ -3,13 +3,14 @@
 import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
 import { formatNumber } from '@/lib/utils';
 import { VideoStats } from '@/types/video';
-import { useState } from 'react';
 import { qoeLogger } from '@/lib/qoe';
 
 interface ActionsBarProps {
   stats: VideoStats;
   liked?: boolean;
+  saved?: boolean;
   onLike: () => void;
+  onSave: () => void;
   onComment: () => void;
   onShare: () => void;
 }
@@ -17,12 +18,12 @@ interface ActionsBarProps {
 export function ActionsBar({
   stats,
   liked = false,
+  saved = false,
   onLike,
+  onSave,
   onComment,
   onShare,
 }: ActionsBarProps) {
-  const [saved, setSaved] = useState(false);
-
   const handleLike = () => {
     qoeLogger.recordLikeTap();
     onLike();
@@ -31,10 +32,6 @@ export function ActionsBar({
   const handleComment = () => {
     qoeLogger.recordCommentOpen();
     onComment();
-  };
-
-  const handleSave = () => {
-    setSaved(!saved);
   };
 
   return (
@@ -89,7 +86,7 @@ export function ActionsBar({
 
       {/* Save Button */}
       <button
-        onClick={handleSave}
+        onClick={onSave}
         className="flex flex-col items-center gap-1 group"
         aria-label={saved ? 'Unsave' : 'Save'}
       >
@@ -106,4 +103,3 @@ export function ActionsBar({
     </div>
   );
 }
-

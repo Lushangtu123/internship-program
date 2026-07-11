@@ -49,6 +49,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Profile page at `/creator/[id]` with Follow + video grid
 - Avatar / handle on each card links to the profile
 
+## Step 8 — Persistent saves ✅
+
+- `POST /api/videos/:id/save` toggles a per-user bookmark
+- `GET /api/videos?feed=saved` returns saved videos (newest first)
+- Bookmark control on each card; top tab **Saved**
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

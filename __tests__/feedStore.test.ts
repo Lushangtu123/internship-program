@@ -15,6 +15,7 @@ import {
   resetStoreCache,
   toggleFollow,
   toggleLike,
+  toggleSave,
 } from '@/lib/db/feedStore';
 
 describe('feedStore identity + persistence', () => {
@@ -192,5 +193,27 @@ describe('feedStore identity + persistence', () => {
   it('returns not found for unknown creator', async () => {
     const result = await getCreatorProfile('missing', null, dataDir);
     expect(result).toEqual({ error: 'Creator not found' });
+  });
+
+  it('keeps saves per user and lists them newest-first', async () => {
+    const a = await createGuestUser(dataDir);
+    const b = await createGuestUser(dataDir);
+
+    const first = await toggleSave('v_001', a.user.id, dataDir);
+    expect(first.ok && first.saved).toBe(true);
+    const second = await toggleSave('v_002', a.user.id, dataDir);
+    expect(second.ok && second.saved).toBe(true);
+
+    const forA = await listVideos(null, 50, a.user.id, dataDir, 'saved');
+    expect(forA.items.map((v) => v.id)).toEqual(['v_002', 'v_001']);
+    expect(forA.items.every((v) => v.saved)).toBe(true);
+
+    const forB = await listVideos(null, 50, b.user.id, dataDir, 'saved');
+    expect(forB.items).toHaveLength(0);
+
+    const unsaved = await toggleSave('v_002', a.user.id, dataDir);
+    expect(unsaved.ok && unsaved.saved).toBe(false);
+    const after = await listVideos(null, 50, a.user.id, dataDir, 'saved');
+    expect(after.items.map((v) => v.id)).toEqual(['v_001']);
   });
 });

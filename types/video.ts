@@ -27,6 +27,8 @@ export interface Video {
   stats: VideoStats;
   captionsVtt?: string;
   liked?: boolean;
+  /** Whether the current viewer saved/bookmarked this video */
+  saved?: boolean;
   /** Whether the current viewer follows this creator */
   isFollowing?: boolean;
   /** Epoch ms — used for freshness ranking */
@@ -57,5 +59,10 @@ export interface LikeResponse {
   ok: boolean;
   liked: boolean;
   likes?: number;
+}
+
+export interface SaveResponse {
+  ok: boolean;
+  saved: boolean;
 }
 
