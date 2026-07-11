@@ -281,7 +281,7 @@
   - 扩展 `sqliteOps`：`opToggleLike` / `opToggleFollow` / `opToggleSave` / `opAddComment` / `opRecordSignal` / `opRecordShare`（可附带通知插入）
   - `feedStore` 上述路径全部走 `persistIncremental`
   - 回归：互动后既有私信行不被抹掉
-- **结果**：待提交后回填。
+- **结果**：提交：`765f305`；`npm test` 69 通过。
 - **后续**：上传/鉴权等低频路径可仍用快照；确认后可合 main；WebSocket/SSE 仍可选。
 
 ---
