@@ -83,7 +83,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
   const unread = data?.unreadCount ?? 0;
 
   useEffect(() => {
-    if (!conversationId || unread === 0) return;
+    if (!conversationId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -93,6 +93,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
             queryKey: ['messages', conversationId],
           });
           await queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          await queryClient.invalidateQueries({ queryKey: ['notifications'] });
         }
       } catch (err) {
         console.error(err);

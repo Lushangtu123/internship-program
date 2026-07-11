@@ -358,6 +358,15 @@
   - `sendMessage` 给对方 `pushNotification` + `opInsertNotification`
   - 深链 `/inbox/c/...`；Inbox 文案带预览
 - **结果**：提交：`efc3d76`；`npm test` 80 通过。
+- **后续**：打开会话时同步清除 message 通知。
+
+### 2026-07-11 — Step 34：读会话同步清除私信 Activity 通知
+
+- **问题**：进了私信会话后，Activity 里对应 message 通知仍未读，底栏红点偏高。
+- **方法**：
+  - `markConversationRead` 把同 `conversationId` 的 `message` 通知标已读
+  - 会话页打开时刷新 `notifications` 查询
+- **结果**：待提交后回填。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---

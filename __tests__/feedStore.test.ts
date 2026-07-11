@@ -559,6 +559,13 @@ describe('feedStore identity + persistence', () => {
     const afterRead = await listConversations(bob.user.id, dataDir);
     expect(afterRead.unreadCount).toBe(0);
 
+    const bobNotesAfter = await listNotifications(bob.user.id, 10, dataDir);
+    expect(
+      bobNotesAfter.items
+        .filter((n) => n.conversationId === opened.conversation.id)
+        .every((n) => n.read)
+    ).toBe(true);
+
     resetStoreCache(dataDir);
     const again = await listMessages(
       opened.conversation.id,
