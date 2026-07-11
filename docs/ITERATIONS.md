@@ -54,9 +54,9 @@
 - **方法**：
   - 新建 `docs/ITERATIONS.md`，回填 UI-A～D，并规定后续每次更新追加条目
   - 删除 feed 上的 `AuthBar`
-  - 新建 `ProfileAuthPanel`：自己的主页展示游客登录/注册，或已登录用户的 Log out
+  - 新建 `ProfileAuthPanel`：自己的主页展示游客登录/注册，或已登录用户的 Log out；登录/登出后跳转到对应 `/creator/[id]`
   - README / ROADMAP 链到迭代文档
-- **结果**：信息流顶层无账号控件；账号能力集中在 Me。提交：见本条对应 commit
+- **结果**：信息流顶层无账号控件；账号能力集中在 Me。提交：`c1b4dc8`（跳转补丁见后续 commit）
 - **后续**：可考虑在 Following 空态与 Inbox 空态强化引导注册；静音可并进首次手势提示。
 
 ---

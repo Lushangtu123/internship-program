@@ -1,8 +1,9 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { login, logout, register, type AuthUser } from '@/lib/api';
+import { fetchMe, login, logout, register, type AuthUser } from '@/lib/api';
 
 interface ProfileAuthPanelProps {
   user: AuthUser;
@@ -10,6 +11,7 @@ interface ProfileAuthPanelProps {
 
 /** Sign-in / log-out controls living on the Me profile, not the feed chrome. */
 export function ProfileAuthPanel({ user }: ProfileAuthPanelProps) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
@@ -36,6 +38,7 @@ export function ProfileAuthPanel({ user }: ProfileAuthPanelProps) {
       await refresh(next);
       setUsername('');
       setPassword('');
+      router.replace(`/creator/${next.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Auth failed');
     } finally {
@@ -44,20 +47,33 @@ export function ProfileAuthPanel({ user }: ProfileAuthPanelProps) {
   };
 
   const onLogout = async () => {
-    await logout();
-    await refresh();
+    setPending(true);
+    try {
+      await logout();
+      await refresh();
+      const guest = await fetchMe();
+      router.replace(`/creator/${guest.id}`);
+    } catch (err) {
+      console.error(err);
+      router.replace('/');
+    } finally {
+      setPending(false);
+    }
   };
 
   if (!user.isGuest) {
     return (
       <div className="mt-5 space-y-2">
-        <p className="text-center text-sm text-white/50">Signed in as @{user.username}</p>
+        <p className="text-center text-sm text-white/50">
+          Signed in as @{user.username}
+        </p>
         <button
           type="button"
           onClick={onLogout}
-          className="w-full rounded-md bg-white/10 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
+          disabled={pending}
+          className="w-full rounded-md bg-white/10 py-2.5 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-60"
         >
-          Log out
+          {pending ? 'Please wait…' : 'Log out'}
         </button>
       </div>
     );
