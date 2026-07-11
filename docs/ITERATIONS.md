@@ -181,7 +181,7 @@
   - 新增 `FeedTabs`（Following | For You）叠在信息流顶部
   - `parseFeedMode` / `applyFeedModeToSearchParams`：Following 写 `feed=following` 并清掉 `v`/`c`；For You 去掉 `feed`
   - 底栏 Home/Following 与顶栏共用 `changeFeedMode`；Following 下不做 `?v=` URL 同步
-- **结果**：模式可见、可分享、可刷新保持。提交：见本条合入 commit
+- **结果**：模式可见、可分享、可刷新保持。提交：`051aa8e`
 - **后续**：字幕按钮；评论分页；分享计数；上传进度。
 
 ---
