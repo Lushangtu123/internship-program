@@ -240,7 +240,7 @@
 - **方法**（同实验分支）：
   - `ABR_LADDER`：360p / 480p / 720p + `master.m3u8`（`index.m3u8` 作别名）
   - 阶梯失败回退单码率；`useHlsPlayback` 开启 `capLevelToPlayerSize` + 自动 startLevel
-- **结果**：见本条合入 commit。
+- **结果**：`07db91f`。
 - **后续**：规范化 SQL 表结构；确认后可合 main。
 
 ---
