@@ -14,9 +14,9 @@ A high-performance short-video “For You” feed for the web: full-viewport ver
 - **Autoplay / pause** — `IntersectionObserver` (plays at ~70% visibility)
 - **Manual play / pause** — tap the video or press Space
 - **Double-tap like** — TikTok-style animation with optimistic updates
-- **Comments drawer** — bottom sheet on mobile / side panel on desktop, with optimistic posts
+- **Comments drawer** — bottom sheet on mobile / side panel on desktop, with optimistic posts and one-level replies
 - **Share** — Web Share API with clipboard fallback (`/?v={id}` deep link)
-- **Save** — local UI toggle
+- **Save** — per-user bookmarks with a **Saved** feed tab
 - **Volume** — global mute / unmute
 - **Captions** — optional `<track>` captions (samples in `public/captions/`)
 - **Debug panel** — open `/?debug=1` for QoE metrics
@@ -137,7 +137,7 @@ internship-program/
 | `POST` | `/api/videos/:id/like` | Like a video |
 | `POST` | `/api/videos/:id/save` | Save / unsave a video |
 | `GET` | `/api/videos/:id/comments` | List comments |
-| `POST` | `/api/videos/:id/comments` | Post a comment |
+| `POST` | `/api/videos/:id/comments` | Post a comment (`parentId` optional for reply) |
 | `POST` | `/api/follow` | Toggle follow for a creator |
 | `GET` | `/api/creators/:id` | Creator profile + videos |
 | `GET` | `/api/creators/suggested` | Creators to follow (empty Following) |

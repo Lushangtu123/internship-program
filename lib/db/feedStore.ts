@@ -617,16 +617,32 @@ export async function listComments(
   }
 
   const allComments = store.comments[videoId] ?? [];
+  const roots = allComments.filter((c) => !c.parentId);
+  const repliesByParent = new Map<string, Comment[]>();
+  for (const comment of allComments) {
+    if (!comment.parentId) continue;
+    const list = repliesByParent.get(comment.parentId) ?? [];
+    list.push(comment);
+    repliesByParent.set(comment.parentId, list);
+  }
+  for (const list of repliesByParent.values()) {
+    list.sort((a, b) => a.timestamp - b.timestamp);
+  }
+
   let startIndex = 0;
   if (cursor) {
-    const cursorIndex = allComments.findIndex((c) => c.id === cursor);
+    const cursorIndex = roots.findIndex((c) => c.id === cursor);
     startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
   }
 
-  const items = allComments.slice(startIndex, startIndex + limit);
+  const slice = roots.slice(startIndex, startIndex + limit);
+  const items = slice.map((root) => ({
+    ...root,
+    replies: repliesByParent.get(root.id) ?? [],
+  }));
   const nextCursor =
-    startIndex + limit < allComments.length
-      ? allComments[startIndex + limit - 1].id
+    startIndex + limit < roots.length
+      ? roots[startIndex + limit - 1].id
       : null;
 
   return { items, nextCursor };
@@ -636,7 +652,8 @@ export async function addComment(
   videoId: string,
   text: string,
   user: PublicUser,
-  dataDir?: string
+  dataDir?: string,
+  parentId?: string | null
 ): Promise<Comment | { error: string; status: number }> {
   const trimmed = text?.trim() ?? '';
   if (!trimmed) {
@@ -649,6 +666,18 @@ export async function addComment(
     return { error: 'Video not found', status: 404 };
   }
 
+  let resolvedParentId: string | undefined;
+  if (parentId) {
+    const parent = (store.comments[videoId] ?? []).find((c) => c.id === parentId);
+    if (!parent) {
+      return { error: 'Parent comment not found', status: 404 };
+    }
+    if (parent.parentId) {
+      return { error: 'Cannot reply to a reply', status: 400 };
+    }
+    resolvedParentId = parent.id;
+  }
+
   const comment: Comment = {
     id: newId('c'),
     userId: user.id,
@@ -657,6 +686,7 @@ export async function addComment(
     text: trimmed,
     timestamp: Date.now(),
     likes: 0,
+    ...(resolvedParentId ? { parentId: resolvedParentId } : {}),
   };
 
   if (!store.comments[videoId]) {

@@ -73,6 +73,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Following empty state suggests creators (`GET /api/creators/suggested`)
 - One-tap Follow from suggestions; jump back to For You
 
+## Step 12 — Comment replies ✅
+
+- Comments support one-level `parentId` replies
+- List API nests replies under top-level threads
+- Comments drawer: Reply / cancel chip + indented replies
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
