@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  fetchMe,
   fetchSuggestedCreators,
   toggleFollowCreator,
   type SuggestedCreator,
@@ -70,12 +72,18 @@ function SuggestionRow({
 
 export function FollowingEmptyState({ onGoForYou }: FollowingEmptyStateProps) {
   const queryClient = useQueryClient();
+  const { data: me } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: fetchMe,
+  });
   const { data, isLoading } = useQuery({
     queryKey: ['creators', 'suggested'],
     queryFn: () => fetchSuggestedCreators(6),
   });
 
   const suggestions = data ?? [];
+  const isGuest = me?.isGuest ?? true;
+  const meHref = me ? `/creator/${me.id}` : '/';
 
   const refreshFeeds = async () => {
     await queryClient.invalidateQueries({ queryKey: ['videos'] });
@@ -83,13 +91,24 @@ export function FollowingEmptyState({ onGoForYou }: FollowingEmptyStateProps) {
   };
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-4">
+    <div className="h-full flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-4">
       <div className="space-y-1">
         <p className="text-lg font-semibold">No following videos yet</p>
         <p className="text-sm text-white/60">
-          Follow a few creators to fill this tab.
+          {isGuest
+            ? 'Sign in so follows stick across sessions, then follow creators below.'
+            : 'Follow a few creators to fill this tab.'}
         </p>
       </div>
+
+      {isGuest && (
+        <Link
+          href={meHref}
+          className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90"
+        >
+          Sign in on Me
+        </Link>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-white/40">Loading suggestions…</p>

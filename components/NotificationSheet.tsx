@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  fetchMe,
   fetchNotifications,
   markNotificationsRead,
   type AppNotification,
@@ -37,6 +38,11 @@ interface NotificationSheetProps {
 export function NotificationSheet({ open, onClose }: NotificationSheetProps) {
   const queryClient = useQueryClient();
 
+  const { data: me } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: fetchMe,
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => fetchNotifications(30),
@@ -45,6 +51,8 @@ export function NotificationSheet({ open, onClose }: NotificationSheetProps) {
 
   const unread = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
+  const isGuest = me?.isGuest ?? true;
+  const meHref = me ? `/creator/${me.id}` : '/';
 
   useEffect(() => {
     if (!open || unread === 0) return;
@@ -91,9 +99,27 @@ export function NotificationSheet({ open, onClose }: NotificationSheetProps) {
               Loading…
             </p>
           ) : items.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-white/50">
-              No notifications yet
-            </p>
+            <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+              <p className="text-sm text-white/50">No notifications yet</p>
+              {isGuest ? (
+                <>
+                  <p className="text-xs text-white/40">
+                    Sign in so likes, comments, and follows show up here.
+                  </p>
+                  <Link
+                    href={meHref}
+                    onClick={onClose}
+                    className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-black hover:bg-white/90"
+                  >
+                    Sign in on Me
+                  </Link>
+                </>
+              ) : (
+                <p className="text-xs text-white/40">
+                  When someone likes or comments on your videos, it lands here.
+                </p>
+              )}
+            </div>
           ) : (
             <ul className="divide-y divide-white/5">
               {items.map((item) => {

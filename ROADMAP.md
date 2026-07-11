@@ -124,6 +124,11 @@ We improve toward a TikTok-like product **one step at a time**.
 - One-shot 「Tap for sound」 tip on the active muted card
 - Persisted via `localStorage` (`sv_mute_tip_seen`)
 
+## Step 20 — Empty-state sign-in CTAs ✅
+
+- Following / Inbox empty states guide guests to **Sign in on Me**
+- Aligns with Me-hosted auth (UI-E)
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders
