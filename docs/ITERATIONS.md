@@ -155,6 +155,15 @@
 - **结果**：从 Me 进 Inbox 面板保持打开。提交：`34aecf3`
 - **后续**：ABR / 对象存储等不确定项走实验分支。
 
+### 2026-07-11 — 修复：Me 页 Inbox/Create 就地打开
+
+- **问题**：Me 底栏 Inbox/Create 仍 `router.push('/?sheet=…')`，会离开个人主页跳进视频流再盖一层 sheet，体感像「又回到视频」。
+- **方法**：
+  - `/creator/[id]` 本地挂载 `NotificationSheet` / `UploadSheet`
+  - Inbox/Create 只切换本页 sheet，不再跳转 feed；上传成功仍跳到新视频
+- **结果**：Me → Inbox 留在个人主页打开通知面板。提交：见本次 main
+- **后续**：ABR / 对象存储等不确定项走实验分支。
+
 ---
 
 <!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->

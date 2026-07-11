@@ -15,6 +15,8 @@ import { formatNumber } from '@/lib/utils';
 import type { Video } from '@/types/video';
 import { BottomNav } from '@/components/BottomNav';
 import { ProfileAuthPanel } from '@/components/ProfileAuthPanel';
+import { UploadSheet } from '@/components/UploadSheet';
+import { NotificationSheet } from '@/components/NotificationSheet';
 
 type ProfileTab = 'videos' | 'saved';
 
@@ -74,6 +76,7 @@ export default function CreatorProfilePage() {
   const [followPending, setFollowPending] = useState(false);
   const [following, setFollowing] = useState<boolean | null>(null);
   const [tab, setTab] = useState<ProfileTab>('videos');
+  const [sheet, setSheet] = useState<'upload' | 'inbox' | null>(null);
 
   const isFollowing = following ?? data?.isFollowing ?? false;
   const isSelf = Boolean(me?.id && data?.creator.id === me.id);
@@ -126,7 +129,7 @@ export default function CreatorProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white pb-20">
+    <div className="relative min-h-[100dvh] bg-zinc-950 text-white pb-20">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-zinc-950/90 px-4 py-3 backdrop-blur">
         <Link
           href="/"
@@ -242,11 +245,27 @@ export default function CreatorProfilePage() {
       </section>
 
       <BottomNav
-        active="me"
+        active={sheet === 'inbox' ? 'inbox' : sheet === 'upload' ? 'create' : 'me'}
         onHome={() => router.push('/')}
         onFollowing={() => router.push('/?feed=following')}
-        onCreate={() => router.push('/?sheet=upload')}
-        onInbox={() => router.push('/?sheet=inbox')}
+        onCreate={() =>
+          setSheet((s) => (s === 'upload' ? null : 'upload'))
+        }
+        onInbox={() =>
+          setSheet((s) => (s === 'inbox' ? null : 'inbox'))
+        }
+      />
+      <UploadSheet
+        open={sheet === 'upload'}
+        onClose={() => setSheet(null)}
+        onUploaded={(videoId) => {
+          setSheet(null);
+          router.push(`/?v=${encodeURIComponent(videoId)}`);
+        }}
+      />
+      <NotificationSheet
+        open={sheet === 'inbox'}
+        onClose={() => setSheet(null)}
       />
     </div>
   );
