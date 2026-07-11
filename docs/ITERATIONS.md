@@ -66,7 +66,7 @@
   - `UploadSheet` 增加 `onUploaded(videoId)`；刷新 `videos` 缓存后回调
   - Feed：关 sheet、切 For You、`router.replace(/?v=id)`，复用既有 deep-link 滚动
   - `?v=` 出现时强制 For You 并关掉 sheet（与分享/Inbox 一致）
-- **结果**：发布后直接落到刚上传的视频。提交：见本分支
+- **结果**：发布后直接落到刚上传的视频。提交：`051c1b6`
 - **后续**：分享剪贴板成功反馈；评论通知自动打开抽屉。
 
 ---
