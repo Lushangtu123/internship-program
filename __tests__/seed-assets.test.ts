@@ -22,6 +22,14 @@ describe('mock seed assets', () => {
     }
   });
 
+
+  it('references local video files that exist when src is relative', () => {
+    for (const video of seed.videos) {
+      if (!video.src.startsWith('/')) continue;
+      expect(existsSync(join(root, 'public', video.src.replace(/^\//, '')))).toBe(true);
+    }
+  });
+
   it('references comment avatar files that exist', () => {
     for (const comments of Object.values(seed.comments) as Array<Array<{ userAvatar: string }>>) {
       for (const comment of comments) {

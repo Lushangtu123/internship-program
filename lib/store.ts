@@ -18,7 +18,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  isMuted: false,
+  isMuted: true, // start muted so browser autoplay policies allow playback
   showCaptions: false,
   activeVideoId: null,
   commentsOpen: false,
