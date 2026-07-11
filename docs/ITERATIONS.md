@@ -291,7 +291,7 @@
   - 进程内 `conversationBus`（会话频道 + 用户频道）；`sendMessage` 成功后 fan-out
   - SSE：`GET /api/conversations/[id]/events`、`GET /api/conversations/events`
   - 客户端 `useConversationLive` / `useInboxLive`；连上后放慢轮询作兜底；会话头显示 Live
-- **结果**：待提交后回填。
+- **结果**：提交：`67bc47e`；`npm test` 70 通过。
 - **后续**：多实例需换 Redis pub/sub；确认后可合 main。
 
 ---
