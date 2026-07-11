@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchConversations,
   fetchMe,
   type ConversationSummary,
 } from '@/lib/api';
+import { useInboxLive } from '@/hooks/useConversationLive';
 
 function formatRelative(ts: number) {
   const delta = Math.max(0, Date.now() - ts);
@@ -25,19 +27,27 @@ interface MessagesPanelProps {
 }
 
 export function MessagesPanel({ active = true, className }: MessagesPanelProps) {
+  const queryClient = useQueryClient();
   const { data: me } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: fetchMe,
   });
 
+  const isGuest = me?.isGuest ?? true;
+
+  const onLiveMessage = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+  }, [queryClient]);
+
+  const live = useInboxLive(!isGuest && active, onLiveMessage);
+
   const { data, isLoading } = useQuery({
     queryKey: ['conversations'],
     queryFn: fetchConversations,
-    refetchInterval: active ? 10_000 : 30_000,
+    refetchInterval: live ? 45_000 : active ? 10_000 : 30_000,
   });
 
   const items = data?.items ?? [];
-  const isGuest = me?.isGuest ?? true;
   const meHref = me ? `/creator/${me.id}` : '/';
 
   return (
@@ -116,10 +126,23 @@ function ConversationRow({ item }: { item: ConversationSummary }) {
 
 /** Unread DM count for the bottom-nav badge */
 export function useMessageUnread() {
+  const queryClient = useQueryClient();
+  const { data: me } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: fetchMe,
+  });
+  const isGuest = me?.isGuest ?? true;
+
+  const onLiveMessage = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+  }, [queryClient]);
+
+  const live = useInboxLive(!isGuest, onLiveMessage);
+
   const { data } = useQuery({
     queryKey: ['conversations'],
     queryFn: fetchConversations,
-    refetchInterval: 30_000,
+    refetchInterval: live ? 45_000 : 30_000,
   });
   return data?.unreadCount ?? 0;
 }

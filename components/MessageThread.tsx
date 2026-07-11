@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import {
@@ -9,7 +9,9 @@ import {
   fetchMessages,
   markConversationRead,
   postMessage,
+  type DirectMessage,
 } from '@/lib/api';
+import { useConversationLive } from '@/hooks/useConversationLive';
 
 function formatTime(ts: number) {
   try {
@@ -38,10 +40,43 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
     queryFn: fetchMe,
   });
 
+  const onLiveMessage = useCallback(
+    (message: DirectMessage) => {
+      queryClient.setQueryData(
+        ['messages', conversationId],
+        (
+          prev:
+            | {
+                conversationId: string;
+                peer: { id: string; username: string; avatar: string };
+                items: DirectMessage[];
+                unreadCount: number;
+              }
+            | undefined
+        ) => {
+          if (!prev) return prev;
+          if (prev.items.some((m) => m.id === message.id)) return prev;
+          return {
+            ...prev,
+            items: [...prev.items, message],
+            unreadCount:
+              message.senderId === me?.id
+                ? prev.unreadCount
+                : prev.unreadCount + 1,
+          };
+        }
+      );
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+    [conversationId, me?.id, queryClient]
+  );
+
+  const live = useConversationLive(conversationId, onLiveMessage);
+
   const { data, isLoading } = useQuery({
     queryKey: ['messages', conversationId],
     queryFn: () => fetchMessages(conversationId, 100),
-    refetchInterval: 8_000,
+    refetchInterval: live ? 45_000 : 8_000,
     enabled: !!conversationId,
   });
 
@@ -79,11 +114,25 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
     setSending(true);
     setError(null);
     try {
-      await postMessage(conversationId, text);
+      const message = await postMessage(conversationId, text);
       setDraft('');
-      await queryClient.invalidateQueries({
-        queryKey: ['messages', conversationId],
-      });
+      queryClient.setQueryData(
+        ['messages', conversationId],
+        (
+          prev:
+            | {
+                conversationId: string;
+                peer: { id: string; username: string; avatar: string };
+                items: DirectMessage[];
+                unreadCount: number;
+              }
+            | undefined
+        ) => {
+          if (!prev) return prev;
+          if (prev.items.some((m) => m.id === message.id)) return prev;
+          return { ...prev, items: [...prev.items, message] };
+        }
+      );
       await queryClient.invalidateQueries({ queryKey: ['conversations'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Send failed');
@@ -121,6 +170,11 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
           </Link>
         ) : (
           <span className="text-sm text-white/50">Conversation</span>
+        )}
+        {live && (
+          <span className="ml-auto text-[10px] uppercase tracking-wide text-emerald-400/80">
+            Live
+          </span>
         )}
       </header>
 

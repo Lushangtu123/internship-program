@@ -32,6 +32,7 @@ import {
   opToggleLike,
   opToggleSave,
 } from '@/lib/db/sqliteOps';
+import { publishDirectMessage } from '@/lib/realtime/conversationBus';
 
 export interface PublicUser {
   id: string;
@@ -1320,6 +1321,7 @@ export async function sendMessage(
   await persistIncremental(store, dir, () => {
     opAppendMessage(dir, message, userId, now, keptIds);
   });
+  publishDirectMessage(message, [conv.userAId, conv.userBId]);
   return { ok: true, message };
 }
 

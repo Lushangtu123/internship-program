@@ -282,7 +282,17 @@
   - `feedStore` 上述路径全部走 `persistIncremental`
   - 回归：互动后既有私信行不被抹掉
 - **结果**：提交：`765f305`；`npm test` 69 通过。
-- **后续**：上传/鉴权等低频路径可仍用快照；确认后可合 main；WebSocket/SSE 仍可选。
+- **后续**：私信 SSE 实时推送；确认后可合 main。
+
+### 2026-07-11 — 实验：私信 SSE 实时推送
+
+- **问题**：私信依赖 8–10s 轮询，对端回复体感滞后；多开标签也会空转请求。
+- **方法**（同实验分支）：
+  - 进程内 `conversationBus`（会话频道 + 用户频道）；`sendMessage` 成功后 fan-out
+  - SSE：`GET /api/conversations/[id]/events`、`GET /api/conversations/events`
+  - 客户端 `useConversationLive` / `useInboxLive`；连上后放慢轮询作兜底；会话头显示 Live
+- **结果**：待提交后回填。
+- **后续**：多实例需换 Redis pub/sub；确认后可合 main。
 
 ---
 
