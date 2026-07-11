@@ -43,6 +43,12 @@ Completed work lands on `main`; experimental ideas stay on branches.
 - Top tabs: **For You** / **Following**
 - Follow button on each video card
 
+## Step 12 — Comment replies ✅
+
+- Comments support one-level `parentId` replies
+- List API nests replies under top-level threads
+- Comments drawer: Reply / cancel chip + indented replies
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

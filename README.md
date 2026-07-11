@@ -14,7 +14,7 @@ A high-performance short-video “For You” feed for the web: full-viewport ver
 - **Autoplay / pause** — `IntersectionObserver` (plays at ~70% visibility)
 - **Manual play / pause** — tap the video or press Space
 - **Double-tap like** — TikTok-style animation with optimistic updates
-- **Comments drawer** — bottom sheet on mobile / side panel on desktop, with optimistic posts
+- **Comments drawer** — bottom sheet on mobile / side panel on desktop, with optimistic posts and one-level replies
 - **Share** — Web Share API with clipboard fallback
 - **Save** — local UI toggle
 - **Volume** — global mute / unmute
@@ -135,7 +135,7 @@ internship-program/
 | `GET` | `/api/videos?limit=5&cursor=` | Video list (cursor pagination) |
 | `POST` | `/api/videos/:id/like` | Like a video |
 | `GET` | `/api/videos/:id/comments` | List comments |
-| `POST` | `/api/videos/:id/comments` | Post a comment |
+| `POST` | `/api/videos/:id/comments` | Post a comment (`parentId` optional for reply) |
 | `POST` | `/api/telemetry` | QoE telemetry |
 
 APIs are backed by a **local persistent JSON store** (`data/store.json`, seeded from `public/mock/seed.json`). Guests get an httpOnly session cookie automatically; register/login upgrades the identity. Likes are per-user. Users can upload videos via `POST /api/videos/upload` — files are stored under `public/uploads/`, packaged to **HLS** (with progressive fallback), and played via native HLS or `hls.js`. The **For You** feed is ranked by engagement + freshness; **Following** shows creators you follow.

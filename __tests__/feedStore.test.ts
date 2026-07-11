@@ -96,6 +96,43 @@ describe('feedStore identity + persistence', () => {
     expect(result).toMatchObject({ status: 400 });
   });
 
+  it('nests one-level replies under the parent comment', async () => {
+    const author = await createGuestUser(dataDir);
+    const replier = await createGuestUser(dataDir);
+    const parent = await addComment(
+      'v_001',
+      'top level thought',
+      author.user,
+      dataDir
+    );
+    expect('id' in parent).toBe(true);
+    if (!('id' in parent)) return;
+
+    const reply = await addComment(
+      'v_001',
+      'agree',
+      replier.user,
+      dataDir,
+      parent.id
+    );
+    expect('id' in reply && reply.parentId).toBe(parent.id);
+
+    const nested = await addComment(
+      'v_001',
+      'too deep',
+      author.user,
+      dataDir,
+      'id' in reply ? reply.id : ''
+    );
+    expect(nested).toMatchObject({ status: 400 });
+
+    const listed = await listComments('v_001', null, 50, dataDir);
+    expect('items' in listed).toBe(true);
+    if (!('items' in listed)) return;
+    const thread = listed.items.find((c) => c.id === parent.id);
+    expect(thread?.replies?.some((r) => r.text === 'agree')).toBe(true);
+  });
+
   it('prepends an uploaded video for the acting user', async () => {
     const guest = await createGuestUser(dataDir);
     const video = await createVideo(

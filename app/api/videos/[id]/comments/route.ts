@@ -29,7 +29,13 @@ export async function POST(
 ) {
   const { user, token, isNewSession } = await requireUser(request);
   const body = await request.json();
-  const result = await addComment(params.id, body.text ?? '', user);
+  const result = await addComment(
+    params.id,
+    body.text ?? '',
+    user,
+    undefined,
+    body.parentId ?? null
+  );
 
   if ('error' in result) {
     return withSession(

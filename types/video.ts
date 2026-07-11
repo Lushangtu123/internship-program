@@ -41,6 +41,10 @@ export interface Comment {
   text: string;
   timestamp: number;
   likes: number;
+  /** Present when this comment replies to another top-level comment */
+  parentId?: string;
+  /** Nested replies (list responses only; one level deep) */
+  replies?: Comment[];
 }
 
 export interface VideosResponse {

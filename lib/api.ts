@@ -118,12 +118,13 @@ export async function fetchComments(
 
 export async function postComment(
   videoId: string,
-  text: string
+  text: string,
+  parentId?: string | null
 ): Promise<Comment> {
   const response = await apiFetch(`${API_BASE}/videos/${videoId}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, parentId: parentId ?? undefined }),
   });
   if (!response.ok) throw new Error('Failed to post comment');
   return response.json();
