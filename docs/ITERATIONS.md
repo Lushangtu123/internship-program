@@ -384,7 +384,7 @@
 - **方法**：
   - `pushOrCoalesceMessageNotification`：同 `conversationId` 且未读则更新预览并置顶
   - SQL：`opRefreshNotification`（删旧插新到 position 0）
-- **结果**：待提交后回填。
+- **结果**：提交：`b014e61`；`npm test` 83 通过。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---
