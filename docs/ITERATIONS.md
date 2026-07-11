@@ -271,7 +271,7 @@
   - 新增 `lib/db/sqliteOps.ts`：`opInsertConversation` / `opAppendMessage` / `opMarkConversationRead` / `opMarkNotificationsRead`
   - `feedStore` 对上述热路径走 `persistIncremental`（仍串行化 writeChain）；其它变更仍全量快照
   - 回归：发私信后 likes 行数不变
-- **结果**：待提交后回填。
+- **结果**：提交：`1a48de3`；`npm test` 68 通过。
 - **后续**：点赞/评论/关注等也可迁到按操作写入；确认后可合 main；WebSocket 仍可选。
 
 ---
