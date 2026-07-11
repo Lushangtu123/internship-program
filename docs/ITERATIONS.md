@@ -311,7 +311,7 @@
   - `REDIS_URL` 可选；`redisBridge` 订阅 `sv:dm`，带 `origin` 去重避免回声
   - `conversationBus` 仍先本地 fan-out，再异步 publish；无 Redis 时行为不变
   - `.env.example` 补充说明
-- **结果**：待提交后回填。
+- **结果**：提交：`efe79aa`；`npm test` 74 通过。
 - **后续**：确认后可合 main。
 
 ---
