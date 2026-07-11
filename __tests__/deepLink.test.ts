@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildVideoDeepLink,
   findVideoIndex,
+  isDeepLinkExhausted,
   notificationTargetHref,
 } from '@/lib/deepLink';
 
@@ -49,5 +50,35 @@ describe('deepLink helpers', () => {
         actorId: 'u_3',
       })
     ).toBe('/creator/u_3');
+  });
+
+  it('detects when a deep link search is exhausted', () => {
+    expect(
+      isDeepLinkExhausted({
+        deepLinkId: 'v_missing',
+        foundIndex: -1,
+        isLoading: false,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+      })
+    ).toBe(true);
+    expect(
+      isDeepLinkExhausted({
+        deepLinkId: 'v_missing',
+        foundIndex: -1,
+        isLoading: false,
+        hasNextPage: true,
+        isFetchingNextPage: false,
+      })
+    ).toBe(false);
+    expect(
+      isDeepLinkExhausted({
+        deepLinkId: 'v_001',
+        foundIndex: 2,
+        isLoading: false,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+      })
+    ).toBe(false);
   });
 });

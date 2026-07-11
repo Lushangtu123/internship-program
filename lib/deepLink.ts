@@ -47,3 +47,17 @@ export function notificationTargetHref(item: {
   }
   return item.actorId ? `/creator/${item.actorId}` : null;
 }
+
+/** True when every feed page was loaded and ?v= still isn't in the list. */
+export function isDeepLinkExhausted(input: {
+  deepLinkId: string | null | undefined;
+  foundIndex: number;
+  isLoading: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+}): boolean {
+  if (!input.deepLinkId) return false;
+  if (input.foundIndex >= 0) return false;
+  if (input.isLoading || input.isFetchingNextPage) return false;
+  return !input.hasNextPage;
+}

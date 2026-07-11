@@ -129,6 +129,11 @@ We improve toward a TikTok-like product **one step at a time**.
 - Following / Inbox empty states guide guests to **Sign in on Me**
 - Aligns with Me-hosted auth (UI-E)
 
+## Step 21 — Deep-link not-found feedback ✅
+
+- After exhausting For You pages, missing `?v=` shows a dismissible banner
+- Dead `v=` is cleared so browsing can continue
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

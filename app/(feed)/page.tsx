@@ -14,7 +14,7 @@ import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
 import { useVideoPrefetch } from '@/lib/usePrefetch';
 import { qoeLogger } from '@/lib/qoe';
-import { findVideoIndex } from '@/lib/deepLink';
+import { findVideoIndex, isDeepLinkExhausted } from '@/lib/deepLink';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function FeedPageContent() {
@@ -22,6 +22,7 @@ function FeedPageContent() {
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [feedMode, setFeedMode] = useState<'foryou' | 'following'>('foryou');
   const [sheet, setSheet] = useState<'upload' | 'inbox' | null>(null);
+  const [deepLinkMissing, setDeepLinkMissing] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef<string | null>(null);
   const commentsDeepLinkHandledRef = useRef<string | null>(null);
@@ -54,6 +55,7 @@ function FeedPageContent() {
   // Inbox / share deep links land on For You and close sheets
   useEffect(() => {
     if (!deepLinkId) return;
+    setDeepLinkMissing(null);
     setFeedMode('foryou');
     setSheet(null);
   }, [deepLinkId]);
@@ -103,7 +105,7 @@ function FeedPageContent() {
     setCurrentIndex(index);
   }, [videos.length]);
 
-  // Deep link: load pages until ?v= is found, then jump
+  // Deep link: load pages until ?v= is found, then jump (or report missing)
   useEffect(() => {
     if (!deepLinkId || feedMode !== 'foryou' || isLoading) return;
     if (deepLinkHandledRef.current === deepLinkId) return;
@@ -111,12 +113,28 @@ function FeedPageContent() {
     const index = findVideoIndex(videos, deepLinkId);
     if (index >= 0) {
       deepLinkHandledRef.current = deepLinkId;
+      setDeepLinkMissing(null);
       scrollToVideo(index, 'auto');
       return;
     }
 
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
+      return;
+    }
+
+    if (
+      isDeepLinkExhausted({
+        deepLinkId,
+        foundIndex: index,
+        isLoading,
+        hasNextPage: Boolean(hasNextPage),
+        isFetchingNextPage,
+      })
+    ) {
+      deepLinkHandledRef.current = deepLinkId;
+      setDeepLinkMissing(deepLinkId);
+      router.replace('/');
     }
   }, [
     deepLinkId,
@@ -127,6 +145,7 @@ function FeedPageContent() {
     isFetchingNextPage,
     fetchNextPage,
     scrollToVideo,
+    router,
   ]);
 
   // Comment notifications: ?v=&c=1 opens the comments drawer after scroll
@@ -253,6 +272,28 @@ function FeedPageContent() {
 
   return (
     <>
+      {deepLinkMissing && (
+        <div
+          className="absolute left-3 right-3 top-3 z-40 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-zinc-900/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="min-w-0 text-left">
+            <p className="text-sm font-medium">Video not found</p>
+            <p className="truncate text-xs text-white/50">
+              This link may be old or the video was removed.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeepLinkMissing(null)}
+            className="shrink-0 rounded-md bg-white/10 px-2.5 py-1 text-xs font-medium hover:bg-white/15"
+          >
+            OK
+          </button>
+        </div>
+      )}
+
       {/* Feed Container */}
       <div
         ref={containerRef}
