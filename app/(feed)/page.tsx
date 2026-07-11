@@ -7,7 +7,6 @@ import { CommentsDrawer } from '@/components/CommentsDrawer';
 import { DebugPanel } from '@/components/DebugPanel';
 import { BottomNav, type BottomNavTab } from '@/components/BottomNav';
 import { UploadSheet } from '@/components/UploadSheet';
-import { NotificationSheet } from '@/components/NotificationSheet';
 import { FollowingEmptyState } from '@/components/FollowingEmptyState';
 import { useKeyboardShortcuts } from '@/lib/keyboard';
 import { useUIStore } from '@/lib/store';
@@ -21,7 +20,7 @@ function FeedPageContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [feedMode, setFeedMode] = useState<'foryou' | 'following'>('foryou');
-  const [sheet, setSheet] = useState<'upload' | 'inbox' | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [deepLinkMissing, setDeepLinkMissing] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef<string | null>(null);
@@ -33,39 +32,38 @@ function FeedPageContent() {
   /** Next patches history.replaceState — block active-video URL sync until ?v= is resolved. */
   const urlSyncEnabledRef = useRef(!deepLinkId);
 
-  const navActive: BottomNavTab =
-    sheet === 'inbox'
-      ? 'inbox'
-      : sheet === 'upload'
-        ? 'create'
-        : feedMode === 'following'
-          ? 'following'
-          : 'home';
+  const navActive: BottomNavTab = uploadOpen
+    ? 'create'
+    : feedMode === 'following'
+      ? 'following'
+      : 'home';
 
   const { commentsOpen, setCommentsOpen, toggleMute, toggleCaptions, debugMode, setDebugMode } = useUIStore();
 
-  // Optional deep-links from profile bottom nav
+  // Optional deep-links from profile / legacy ?sheet=
   useEffect(() => {
     const feed = searchParams.get('feed');
     if (feed === 'following') setFeedMode('following');
     const sheetParam = searchParams.get('sheet');
-    if (sheetParam === 'upload' || sheetParam === 'inbox') {
-      setSheet(sheetParam);
+    if (sheetParam === 'inbox') {
+      router.replace('/inbox');
+      return;
     }
-  }, [searchParams]);
+    if (sheetParam === 'upload') {
+      setUploadOpen(true);
+    }
+  }, [searchParams, router]);
 
-  // Intentional video deep links close sheets and force For You.
-  // Do NOT run when a sheet is already open — arriving from Me as
-  // /?sheet=inbox causes URL-sync to add ?v=, which must not dismiss Inbox.
+  // Intentional video deep links force For You (unless Create sheet is open).
   useEffect(() => {
     if (!deepLinkId) return;
     if (deepLinkHandledRef.current === deepLinkId) return;
-    if (sheet) return;
-    if (searchParams.get('sheet')) return;
+    if (uploadOpen) return;
+    if (searchParams.get('sheet') === 'upload') return;
     urlSyncEnabledRef.current = false;
     setDeepLinkMissing(null);
     setFeedMode('foryou');
-  }, [deepLinkId, sheet, searchParams]);
+  }, [deepLinkId, uploadOpen, searchParams]);
 
   // Fetch videos with infinite scroll
   const {
@@ -376,40 +374,28 @@ function FeedPageContent() {
       <BottomNav
         active={navActive}
         onHome={() => {
-          setSheet(null);
+          setUploadOpen(false);
           setFeedMode('foryou');
         }}
         onFollowing={() => {
-          setSheet(null);
+          setUploadOpen(false);
           setFeedMode('following');
         }}
-        onCreate={() =>
-          setSheet((s) => (s === 'upload' ? null : 'upload'))
-        }
-        onInbox={() =>
-          setSheet((s) => (s === 'inbox' ? null : 'inbox'))
-        }
+        onCreate={() => setUploadOpen((o) => !o)}
       />
       <UploadSheet
-        open={sheet === 'upload'}
+        open={uploadOpen}
         onClose={() => {
-          setSheet(null);
+          setUploadOpen(false);
           clearSheetQuery();
         }}
         onUploaded={(videoId) => {
-          setSheet(null);
+          setUploadOpen(false);
           clearSheetQuery();
           setFeedMode('foryou');
           deepLinkHandledRef.current = null;
           urlSyncEnabledRef.current = false;
           router.replace(`/?v=${encodeURIComponent(videoId)}`);
-        }}
-      />
-      <NotificationSheet
-        open={sheet === 'inbox'}
-        onClose={() => {
-          setSheet(null);
-          clearSheetQuery();
         }}
       />
 

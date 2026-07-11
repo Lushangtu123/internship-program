@@ -162,7 +162,17 @@
   - `/creator/[id]` 本地挂载 `NotificationSheet` / `UploadSheet`
   - Inbox/Create 只切换本页 sheet，不再跳转 feed；上传成功仍跳到新视频
 - **结果**：Me → Inbox 留在个人主页打开通知面板。提交：`c73a978`
-- **后续**：ABR / 对象存储等不确定项走实验分支。
+- **后续**：用户仍反馈会跳到视频；改为独立 `/inbox` 路由（见下条）。
+
+### 2026-07-11 — 修复：Inbox 独立页，彻底离开视频流
+
+- **问题**：Inbox 叠在 feed / Me 上时，仍容易和 `?v=` 深链、视频背景搅在一起，体感「又跳回视频」。
+- **方法**：
+  - 新增 `/inbox` 全页（手机框内），`InboxPanel` 抽共用列表
+  - 底栏 Inbox 改为 `Link` → `/inbox`，不再用 feed sheet
+  - 旧 `/?sheet=inbox` 重定向到 `/inbox`；Create 仍用 UploadSheet
+- **结果**：Me / Home 点 Inbox 都进无视频的通知页。提交：见本条合入 commit
+- **后续**：点赞/评论通知仍可点进对应视频（有意为之）。
 
 ---
 

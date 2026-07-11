@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Home, Users, Plus, Bell, User } from 'lucide-react';
 import { fetchMe } from '@/lib/api';
-import { useNotificationUnread } from '@/components/NotificationSheet';
+import { useNotificationUnread } from '@/components/InboxPanel';
 import { cn } from '@/lib/utils';
 
 export type BottomNavTab = 'home' | 'following' | 'create' | 'inbox' | 'me';
@@ -14,7 +14,6 @@ interface BottomNavProps {
   onHome: () => void;
   onFollowing: () => void;
   onCreate: () => void;
-  onInbox: () => void;
 }
 
 export function BottomNav({
@@ -22,7 +21,6 @@ export function BottomNav({
   onHome,
   onFollowing,
   onCreate,
-  onInbox,
 }: BottomNavProps) {
   const { data: me } = useQuery({
     queryKey: ['auth', 'me'],
@@ -42,7 +40,8 @@ export function BottomNav({
       className="absolute bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
       aria-label="Main"
     >
-      <div className="flex h-14 items-stretch px-1">        <button type="button" onClick={onHome} className={itemClass('home')}>
+      <div className="flex h-14 items-stretch px-1">
+        <button type="button" onClick={onHome} className={itemClass('home')}>
           <Home className="h-5 w-5" strokeWidth={active === 'home' ? 2.5 : 2} />
           Home
         </button>
@@ -67,7 +66,12 @@ export function BottomNav({
             <Plus className="h-5 w-5" strokeWidth={2.5} />
           </span>
         </button>
-        <button type="button" onClick={onInbox} className={itemClass('inbox')}>
+        <Link
+          href="/inbox"
+          className={itemClass('inbox')}
+          aria-label="Inbox"
+          aria-current={active === 'inbox' ? 'page' : undefined}
+        >
           <span className="relative">
             <Bell
               className="h-5 w-5"
@@ -80,7 +84,7 @@ export function BottomNav({
             )}
           </span>
           Inbox
-        </button>
+        </Link>
         <Link
           href={profileHref}
           className={itemClass('me')}

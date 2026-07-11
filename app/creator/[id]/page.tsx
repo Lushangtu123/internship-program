@@ -16,7 +16,6 @@ import type { Video } from '@/types/video';
 import { BottomNav } from '@/components/BottomNav';
 import { ProfileAuthPanel } from '@/components/ProfileAuthPanel';
 import { UploadSheet } from '@/components/UploadSheet';
-import { NotificationSheet } from '@/components/NotificationSheet';
 
 type ProfileTab = 'videos' | 'saved';
 
@@ -76,7 +75,7 @@ export default function CreatorProfilePage() {
   const [followPending, setFollowPending] = useState(false);
   const [following, setFollowing] = useState<boolean | null>(null);
   const [tab, setTab] = useState<ProfileTab>('videos');
-  const [sheet, setSheet] = useState<'upload' | 'inbox' | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const isFollowing = following ?? data?.isFollowing ?? false;
   const isSelf = Boolean(me?.id && data?.creator.id === me.id);
@@ -245,27 +244,18 @@ export default function CreatorProfilePage() {
       </section>
 
       <BottomNav
-        active={sheet === 'inbox' ? 'inbox' : sheet === 'upload' ? 'create' : 'me'}
+        active={uploadOpen ? 'create' : 'me'}
         onHome={() => router.push('/')}
         onFollowing={() => router.push('/?feed=following')}
-        onCreate={() =>
-          setSheet((s) => (s === 'upload' ? null : 'upload'))
-        }
-        onInbox={() =>
-          setSheet((s) => (s === 'inbox' ? null : 'inbox'))
-        }
+        onCreate={() => setUploadOpen((o) => !o)}
       />
       <UploadSheet
-        open={sheet === 'upload'}
-        onClose={() => setSheet(null)}
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
         onUploaded={(videoId) => {
-          setSheet(null);
+          setUploadOpen(false);
           router.push(`/?v=${encodeURIComponent(videoId)}`);
         }}
-      />
-      <NotificationSheet
-        open={sheet === 'inbox'}
-        onClose={() => setSheet(null)}
       />
     </div>
   );

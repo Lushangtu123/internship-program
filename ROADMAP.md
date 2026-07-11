@@ -59,7 +59,7 @@ We improve toward a TikTok-like product **one step at a time**.
 
 - Bottom nav: **Home | Following | Create | Inbox | Me**
 - Own profile hosts **Videos | Saved** + sign-in / log-out
-- Upload + inbox open as dark sheets above the nav
+- Upload opens as a dark sheet above the nav; Inbox is a dedicated `/inbox` page
 - Desktop: centered phone frame (`max-w-md`); comments drawer matches dark feed
 - Iteration log: [`docs/ITERATIONS.md`](./docs/ITERATIONS.md)
 

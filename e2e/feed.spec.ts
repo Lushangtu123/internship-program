@@ -168,7 +168,7 @@ test.describe('Deep link', () => {
 });
 
 test.describe('Me → Inbox', () => {
-  test('opens Inbox on the profile page without jumping to the feed', async ({
+  test('opens dedicated Inbox page without showing the video feed', async ({
     page,
   }) => {
     await page.goto('/');
@@ -178,16 +178,15 @@ test.describe('Me → Inbox', () => {
 
     await page
       .getByRole('navigation', { name: 'Main' })
-      .getByText('Inbox', { exact: true })
+      .getByRole('link', { name: 'Inbox' })
       .click();
 
-    // Stay on Me — do not navigate to the video feed
-    await expect(page).toHaveURL(/\/creator\//);
+    await expect(page).toHaveURL(/\/inbox\/?$/);
     await expect(page.getByRole('heading', { name: /^Inbox$/i })).toBeVisible({
       timeout: 10000,
     });
     await page.waitForTimeout(500);
-    await expect(page).toHaveURL(/\/creator\//);
-    await expect(page.getByRole('heading', { name: /^Inbox$/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/inbox\/?$/);
+    await expect(page.locator('video')).toHaveCount(0);
   });
 });
