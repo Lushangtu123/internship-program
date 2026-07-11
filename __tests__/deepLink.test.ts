@@ -1,12 +1,33 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyFeedModeToSearchParams,
   buildVideoDeepLink,
   findVideoIndex,
   isDeepLinkExhausted,
   notificationTargetHref,
+  parseFeedMode,
 } from '@/lib/deepLink';
 
 describe('deepLink helpers', () => {
+  it('parses feed mode from query values', () => {
+    expect(parseFeedMode('following')).toBe('following');
+    expect(parseFeedMode('foryou')).toBe('foryou');
+    expect(parseFeedMode(null)).toBe('foryou');
+  });
+
+  it('writes feed mode into search params and clears v on Following', () => {
+    const params = new URLSearchParams('v=v_001&c=1&debug=1');
+    applyFeedModeToSearchParams(params, 'following');
+    expect(params.get('feed')).toBe('following');
+    expect(params.get('v')).toBeNull();
+    expect(params.get('c')).toBeNull();
+    expect(params.get('debug')).toBe('1');
+
+    applyFeedModeToSearchParams(params, 'foryou');
+    expect(params.get('feed')).toBeNull();
+    expect(params.get('debug')).toBe('1');
+  });
+
   it('builds a share URL with v= and preserves other params', () => {
     expect(buildVideoDeepLink('http://localhost:3000', 'v_002')).toBe(
       'http://localhost:3000/?v=v_002'

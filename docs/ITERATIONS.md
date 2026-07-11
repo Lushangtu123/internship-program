@@ -174,6 +174,16 @@
 - **结果**：Me / Home 点 Inbox 都进无视频的通知页。提交：`ac4e2f4`
 - **后续**：点赞/评论通知仍可点进对应视频（有意为之）。
 
+### 2026-07-11 — Step 22：For You / Following 顶栏 + URL 同步
+
+- **问题**：信息流模式只靠底栏切换，顶栏看不见当前是 For You 还是 Following；刷新/`?feed=` 与本地状态不同步；切到 Following 时残留的 `?v=` 还会把人拽回 For You。
+- **方法**：
+  - 新增 `FeedTabs`（Following | For You）叠在信息流顶部
+  - `parseFeedMode` / `applyFeedModeToSearchParams`：Following 写 `feed=following` 并清掉 `v`/`c`；For You 去掉 `feed`
+  - 底栏 Home/Following 与顶栏共用 `changeFeedMode`；Following 下不做 `?v=` URL 同步
+- **结果**：模式可见、可分享、可刷新保持。提交：见本条合入 commit
+- **后续**：字幕按钮；评论分页；分享计数；上传进度。
+
 ---
 
 <!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->

@@ -1,3 +1,29 @@
+export type FeedMode = 'foryou' | 'following';
+
+/** Read feed mode from a querystring / searchParams value. */
+export function parseFeedMode(
+  feed: string | null | undefined
+): FeedMode {
+  return feed === 'following' ? 'following' : 'foryou';
+}
+
+/**
+ * Apply feed mode onto the current URL (preserves other params).
+ * Following clears `v`/`c` so deep-link scroll cannot yank you back to For You.
+ */
+export function applyFeedModeToSearchParams(
+  params: URLSearchParams,
+  mode: FeedMode
+): void {
+  if (mode === 'following') {
+    params.set('feed', 'following');
+    params.delete('v');
+    params.delete('c');
+  } else {
+    params.delete('feed');
+  }
+}
+
 /** Build a shareable feed URL that opens a specific video. */
 export function buildVideoDeepLink(
   origin: string,

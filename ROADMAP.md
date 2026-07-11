@@ -134,6 +134,12 @@ We improve toward a TikTok-like product **one step at a time**.
 - After exhausting For You pages, missing `?v=` shows a dismissible banner
 - Dead `v=` is cleared so browsing can continue
 
+## Step 22 — Feed tabs + URL-synced mode ✅
+
+- Top **Following | For You** tabs on the feed
+- `?feed=following` stays in sync; switching to Following clears `v`/`c`
+- Bottom nav Home / Following share the same mode switcher
+
 ## Later ideas (not scheduled)
 
 - Multi-bitrate ABR ladders

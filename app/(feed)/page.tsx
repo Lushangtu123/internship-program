@@ -8,25 +8,34 @@ import { DebugPanel } from '@/components/DebugPanel';
 import { BottomNav, type BottomNavTab } from '@/components/BottomNav';
 import { UploadSheet } from '@/components/UploadSheet';
 import { FollowingEmptyState } from '@/components/FollowingEmptyState';
+import { FeedTabs } from '@/components/FeedTabs';
 import { useKeyboardShortcuts } from '@/lib/keyboard';
 import { useUIStore } from '@/lib/store';
 import { fetchVideos } from '@/lib/api';
 import { useVideoPrefetch } from '@/lib/usePrefetch';
 import { qoeLogger } from '@/lib/qoe';
-import { findVideoIndex, isDeepLinkExhausted } from '@/lib/deepLink';
+import {
+  applyFeedModeToSearchParams,
+  findVideoIndex,
+  isDeepLinkExhausted,
+  parseFeedMode,
+  type FeedMode,
+} from '@/lib/deepLink';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function FeedPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
-  const [feedMode, setFeedMode] = useState<'foryou' | 'following'>('foryou');
+  const [feedMode, setFeedMode] = useState<FeedMode>(() =>
+    parseFeedMode(searchParams.get('feed'))
+  );
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deepLinkMissing, setDeepLinkMissing] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const deepLinkHandledRef = useRef<string | null>(null);
   const commentsDeepLinkHandledRef = useRef<string | null>(null);
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const deepLinkId = searchParams.get('v');
   const openCommentsFromLink = searchParams.get('c') === '1';
   /** Next patches history.replaceState — block active-video URL sync until ?v= is resolved. */
@@ -40,10 +49,42 @@ function FeedPageContent() {
 
   const { commentsOpen, setCommentsOpen, toggleMute, toggleCaptions, debugMode, setDebugMode } = useUIStore();
 
+  const writeFeedModeToUrl = useCallback((mode: FeedMode) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    applyFeedModeToSearchParams(url.searchParams, mode);
+    const qs = url.searchParams.toString();
+    window.history.replaceState(
+      null,
+      '',
+      qs ? `${url.pathname}?${qs}` : url.pathname || '/'
+    );
+  }, []);
+
+  const changeFeedMode = useCallback(
+    (mode: FeedMode) => {
+      setUploadOpen(false);
+      setFeedMode(mode);
+      writeFeedModeToUrl(mode);
+      if (mode === 'following') {
+        // Avoid stale ?v= deep-link yanking the user back to For You
+        deepLinkHandledRef.current = null;
+        commentsDeepLinkHandledRef.current = null;
+        setDeepLinkMissing(null);
+        urlSyncEnabledRef.current = true;
+      }
+    },
+    [writeFeedModeToUrl]
+  );
+
+  // Mirror external navigations (e.g. Me → /?feed=following)
+  useEffect(() => {
+    const next = parseFeedMode(searchParams.get('feed'));
+    setFeedMode((prev) => (prev === next ? prev : next));
+  }, [searchParams]);
+
   // Optional deep-links from profile / legacy ?sheet=
   useEffect(() => {
-    const feed = searchParams.get('feed');
-    if (feed === 'following') setFeedMode('following');
     const sheetParam = searchParams.get('sheet');
     if (sheetParam === 'inbox') {
       router.replace('/inbox');
@@ -54,12 +95,13 @@ function FeedPageContent() {
     }
   }, [searchParams, router]);
 
-  // Intentional video deep links force For You (unless Create sheet is open).
+  // Intentional video deep links force For You (unless user is on Following).
   useEffect(() => {
     if (!deepLinkId) return;
     if (deepLinkHandledRef.current === deepLinkId) return;
     if (uploadOpen) return;
     if (searchParams.get('sheet') === 'upload') return;
+    if (searchParams.get('feed') === 'following') return;
     urlSyncEnabledRef.current = false;
     setDeepLinkMissing(null);
     setFeedMode('foryou');
@@ -189,20 +231,22 @@ function FeedPageContent() {
     }
   }, [currentIndex, videos, deepLinkMissing]);
 
-  // Keep ?v= in sync with the active video for shareable URLs.
+  // Keep ?v= in sync with the active video for shareable URLs (For You only).
   // Disabled while a deep link is still being resolved (Next patches replaceState).
   useEffect(() => {
     if (!urlSyncEnabledRef.current) return;
     if (deepLinkMissing) return;
+    if (feedMode !== 'foryou') return;
     if (deepLinkId && deepLinkHandledRef.current !== deepLinkId) return;
     const id = videos[currentIndex]?.id;
     if (!id || typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     if (url.searchParams.get('v') === id) return;
     url.searchParams.set('v', id);
+    url.searchParams.delete('feed');
     const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
     window.history.replaceState(null, '', next);
-  }, [currentIndex, videos, deepLinkId, deepLinkMissing]);
+  }, [currentIndex, videos, deepLinkId, deepLinkMissing, feedMode]);
 
   // Handle scroll
   useEffect(() => {
@@ -308,6 +352,10 @@ function FeedPageContent() {
 
   return (
     <>
+      {!deepLinkMissing && (
+        <FeedTabs mode={feedMode} onChange={changeFeedMode} />
+      )}
+
       {deepLinkMissing && (
         <div
           className="absolute left-3 right-3 top-3 z-40 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-zinc-900/95 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
@@ -343,7 +391,7 @@ function FeedPageContent() {
       >
         {videos.length === 0 ? (
           feedMode === 'following' ? (
-            <FollowingEmptyState onGoForYou={() => setFeedMode('foryou')} />
+            <FollowingEmptyState onGoForYou={() => changeFeedMode('foryou')} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center bg-black text-white px-6 text-center gap-2">
               <p className="text-lg font-semibold">No videos</p>
@@ -373,14 +421,8 @@ function FeedPageContent() {
 
       <BottomNav
         active={navActive}
-        onHome={() => {
-          setUploadOpen(false);
-          setFeedMode('foryou');
-        }}
-        onFollowing={() => {
-          setUploadOpen(false);
-          setFeedMode('following');
-        }}
+        onHome={() => changeFeedMode('foryou')}
+        onFollowing={() => changeFeedMode('following')}
         onCreate={() => setUploadOpen((o) => !o)}
       />
       <UploadSheet
