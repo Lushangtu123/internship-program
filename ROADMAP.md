@@ -178,6 +178,13 @@ Merged from `cursor/personalize-async-upload-8729` / PR #17:
 - Multi-bitrate ABR HLS ladder
 - Messaging MVP (Inbox Activity | Messages) + SSE Live + optional `REDIS_URL` fan-out
 
+## Step 30 — Upload packaging status UI ✅
+
+- Feed card plays progressive file while HLS packs; shows **Processing…** / failed badge
+- Polls `GET /api/videos/[id]` and patches React Query caches when ready
+- Own-profile grid shows Processing / Failed chips
+
 ## Later ideas (not scheduled)
 
 - Horizontal / shared DB for multi-instance store (beyond single-node SQLite WAL)
+- Inbox smart-tab when only DMs are unread

@@ -133,6 +133,29 @@ export async function deleteOwnedVideo(videoId: string): Promise<void> {
   if (!response.ok) throw new Error(data.error || 'Failed to delete video');
 }
 
+export type VideoPackagingStatus = {
+  id: string;
+  status: 'processing' | 'ready' | 'failed';
+  src: string;
+  progressiveSrc?: string;
+};
+
+export async function fetchVideoPackagingStatus(
+  videoId: string
+): Promise<VideoPackagingStatus> {
+  const response = await apiFetch(
+    `${API_BASE}/videos/${encodeURIComponent(videoId)}`
+  );
+  if (!response.ok) throw new Error('Failed to fetch video status');
+  const data = (await response.json()) as VideoPackagingStatus;
+  return {
+    id: data.id,
+    status: data.status ?? 'ready',
+    src: data.src,
+    progressiveSrc: data.progressiveSrc,
+  };
+}
+
 export async function searchCatalog(query: string): Promise<{
   videos: Video[];
   creators: Array<{ id: string; handle: string; avatar: string; name?: string }>;

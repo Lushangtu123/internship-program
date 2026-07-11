@@ -11,10 +11,16 @@ import { MuteGestureTip } from './MuteGestureTip';
 import { useAutoplay } from '@/lib/useAutoplay';
 import { useHlsPlayback } from '@/lib/useHlsPlayback';
 import { useUIStore } from '@/lib/store';
-import { fetchMe, likeVideo, saveVideo, shareVideo, toggleFollowCreator } from '@/lib/api';import { trackComplete, trackPlay } from '@/lib/trackEngagement';
+import { fetchMe, likeVideo, saveVideo, shareVideo, toggleFollowCreator } from '@/lib/api';
+import { trackComplete, trackPlay } from '@/lib/trackEngagement';
 import { buildVideoDeepLink } from '@/lib/deepLink';
 import { shareOutcomeMessage, shareVideoLink } from '@/lib/shareVideo';
 import { cn } from '@/lib/utils';
+import { patchVideoPackaging } from '@/lib/videoQueryCache';
+import {
+  playbackSrcForVideo,
+  useVideoPackagingPoll,
+} from '@/hooks/useVideoPackagingPoll';
 
 interface VideoCardProps {
   video: Video;
@@ -46,7 +52,20 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
 
   const { isMuted, showCaptions, setActiveVideoId, toggleCaptions } = useUIStore();
 
-  useHlsPlayback(videoRef, video.src);
+  const playbackSrc = playbackSrcForVideo(video);
+  useHlsPlayback(videoRef, playbackSrc);
+
+  useVideoPackagingPoll(
+    video,
+    isActive && video.status === 'processing',
+    (next) => {
+      patchVideoPackaging(queryClient, video.id, {
+        status: next.status,
+        src: next.src,
+        progressiveSrc: next.progressiveSrc,
+      });
+    }
+  );
 
   useEffect(() => {
     return () => {
@@ -348,6 +367,21 @@ export function VideoCard({ video, isActive, onCommentClick }: VideoCardProps) {
           showControls ? 'opacity-100' : 'opacity-0'
         )}
       />
+
+      {(video.status === 'processing' || video.status === 'failed') && (
+        <div className="pointer-events-none absolute left-3 top-3 z-20">
+          <span
+            className={cn(
+              'rounded-md px-2 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm backdrop-blur-sm',
+              video.status === 'processing'
+                ? 'bg-black/55'
+                : 'bg-rose-600/80'
+            )}
+          >
+            {video.status === 'processing' ? 'Processing…' : 'Processing failed'}
+          </span>
+        </div>
+      )}
 
       {/* Bottom Overlay: Creator Info & Actions */}
       <div className="absolute bottom-14 left-0 right-0 p-4 bg-gradient-to-t from-black/70 via-black/30 to-transparent">
