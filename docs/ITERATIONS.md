@@ -301,7 +301,7 @@
   - `opInsertUserWithSession` / `opRegisterUpgrade` / `opInsertSession` / `opDeleteSession`
   - `opInsertVideo` / `opUpdateVideoFields` / `opDeleteVideo`（级联清 likes/saves/comments/signals/plays/notifications）
   - `feedStore` 可变路径全部 `persistIncremental`；全量快照仅保留 seed/迁移
-- **结果**：待提交后回填。
+- **结果**：提交：`12c9ef1`；`npm test` 71 通过。
 - **后续**：多实例 DM 需 Redis；确认后可合 main。
 
 ---
