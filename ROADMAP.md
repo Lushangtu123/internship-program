@@ -92,6 +92,12 @@ We improve toward a TikTok-like product **one step at a time**.
 - AuthBar identity chip links to `/creator/[me]`
 - Profile page hides Follow when viewing yourself
 
+## Step 14 — Guest register upgrades in place ✅
+
+- Register from a guest session keeps the same `user.id`
+- Likes / saves / follows / uploads / comments stay attached
+- Denormalized display names (creator handle, comment author) refresh
+
 ## Step 15 — Tappable inbox + open comments ✅
 
 - Like / comment / follow rows navigate to video or profile

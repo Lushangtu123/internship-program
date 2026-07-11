@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  getUserBySession,
   loginUser,
   logoutSession,
   registerUser,
@@ -22,7 +23,15 @@ export async function POST(request: NextRequest) {
   const action = body.action as string;
 
   if (action === 'register') {
-    const result = await registerUser(body.username ?? '', body.password ?? '');
+    // Upgrade the current guest in place so likes/saves/follows/uploads survive.
+    const sessionToken = readSessionToken(request);
+    const current = await getUserBySession(sessionToken);
+    const result = await registerUser(
+      body.username ?? '',
+      body.password ?? '',
+      undefined,
+      current?.isGuest ? current.id : null
+    );
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

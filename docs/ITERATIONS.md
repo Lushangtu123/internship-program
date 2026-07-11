@@ -69,6 +69,17 @@
 - **结果**：Inbox 可导航；评论通知直接看到评论。提交：`a014044`
 - **后续**：游客注册原地升级；发评同步角标；上传后跳新视频（确认项继续直接进 main）。
 
+### 2026-07-11 — Step 14：游客注册原地升级身份
+
+- **问题**：文档写 register 会「升级身份」，但实现一直 `newId` 新建用户，游客期间的赞/收藏/关注/上传全部 orphan。
+- **方法**：
+  - `registerUser(..., upgradeFromUserId)`：guest 原地改 username / password / `isGuest=false`，保留同一 `user.id`
+  - `syncIdentityDisplay`：同步视频 creator、评论、通知展示名
+  - `POST /api/auth` register 读取当前 session；guest 则传入升级 id
+  - Me 注册表单补充「保留互动与上传」说明
+- **结果**：游客注册后仍看到自己的赞/收藏/关注/作品。提交：见本次 main
+- **后续**：发评同步角标；上传后跳新视频；分享反馈。
+
 ---
 
 <!-- 新条目追加在上方「---」之前。每次更新必须写：问题 / 方法 / 结果（含提交）。 -->
