@@ -26,6 +26,10 @@ function notificationCopy(item: AppNotification) {
   const who = `@${item.actorUsername}`;
   if (item.type === 'like') return `${who} liked your video`;
   if (item.type === 'follow') return `${who} started following you`;
+  if (item.type === 'message') {
+    if (item.text) return `${who} sent you a message: ${item.text}`;
+    return `${who} sent you a message`;
+  }
   if (item.text) return `${who} commented: ${item.text}`;
   return `${who} commented on your video`;
 }

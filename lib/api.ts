@@ -243,11 +243,12 @@ export async function postComment(
 export type AppNotification = {
   id: string;
   userId: string;
-  type: 'like' | 'comment' | 'follow';
+  type: 'like' | 'comment' | 'follow' | 'message';
   actorId: string;
   actorUsername: string;
   actorAvatar: string;
   videoId?: string;
+  conversationId?: string;
   text?: string;
   read: boolean;
   createdAt: number;

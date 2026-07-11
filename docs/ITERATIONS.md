@@ -348,6 +348,16 @@
   - 会话页接入 `BottomNav` + `UploadSheet`，内容区 `pb-14` 避开底栏
   - 创作者页 `messageError` 行内展示
 - **结果**：提交：`05fccbd`；`npm test` 80 通过。
+- **后续**：私信 Activity 通知。
+
+### 2026-07-11 — Step 33：私信写入 Activity 通知
+
+- **问题**：收到私信只靠 Messages 列表/红点，Activity 看不到，旧习惯用户会漏掉。
+- **方法**：
+  - `NotificationType` 增加 `message`；`conversationId` 字段 + SQLite 列迁移
+  - `sendMessage` 给对方 `pushNotification` + `opInsertNotification`
+  - 深链 `/inbox/c/...`；Inbox 文案带预览
+- **结果**：待提交后回填。
 - **后续**：共享/多实例数据库；或其他 polish。
 
 ---

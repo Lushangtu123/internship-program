@@ -71,6 +71,19 @@ describe('deepLink helpers', () => {
         actorId: 'u_3',
       })
     ).toBe('/creator/u_3');
+    expect(
+      notificationTargetHref({
+        type: 'message',
+        conversationId: 'c_9',
+        actorId: 'u_2',
+      })
+    ).toBe('/inbox/c/c_9');
+    expect(
+      notificationTargetHref({
+        type: 'message',
+        actorId: 'u_2',
+      })
+    ).toBe('/inbox?tab=messages');
   });
 
   it('detects when a deep link search is exhausted', () => {

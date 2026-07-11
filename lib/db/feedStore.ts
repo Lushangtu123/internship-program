@@ -29,6 +29,7 @@ import {
   opInsertSession,
   opInsertUserWithSession,
   opInsertVideo,
+  opInsertNotification,
   opMarkConversationRead,
   opMarkNotificationsRead,
   opRecordShare,
@@ -48,7 +49,7 @@ export interface PublicUser {
   isGuest: boolean;
 }
 
-export type NotificationType = 'like' | 'comment' | 'follow';
+export type NotificationType = 'like' | 'comment' | 'follow' | 'message';
 
 export interface NotificationItem {
   id: string;
@@ -58,6 +59,8 @@ export interface NotificationItem {
   actorUsername: string;
   actorAvatar: string;
   videoId?: string;
+  /** Present for type=message */
+  conversationId?: string;
   text?: string;
   read: boolean;
   createdAt: number;
@@ -165,6 +168,7 @@ function pushNotification(
     actorUsername: string;
     actorAvatar: string;
     videoId?: string;
+    conversationId?: string;
     text?: string;
   }
 ): NotificationItem | null {
@@ -177,6 +181,7 @@ function pushNotification(
     actorUsername: input.actorUsername,
     actorAvatar: input.actorAvatar,
     videoId: input.videoId,
+    conversationId: input.conversationId,
     text: input.text,
     read: false,
     createdAt: Date.now(),
@@ -1346,10 +1351,20 @@ export async function sendMessage(
   }
   conv.updatedAt = now;
   conv.lastReadAtByUser[userId] = now;
+  const peerId = peerIdOf(conv, userId);
+  const notification = pushNotification(store, peerId, {
+    type: 'message',
+    actorId: me.id,
+    actorUsername: me.username,
+    actorAvatar: me.avatar,
+    conversationId: conv.id,
+    text: trimmed.slice(0, 80),
+  });
   const dir = dataDir ?? DEFAULT_DATA_DIR;
   const keptIds = conv.messages.map((m) => m.id);
   await persistIncremental(store, dir, () => {
     opAppendMessage(dir, message, userId, now, keptIds);
+    if (notification) opInsertNotification(dir, notification);
   });
   publishDirectMessage(message, [conv.userAId, conv.userBId]);
   return { ok: true, message };

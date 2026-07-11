@@ -121,6 +121,7 @@ export function ensureRelationalSchema(db: SqliteDatabase) {
       actor_username TEXT NOT NULL,
       actor_avatar TEXT NOT NULL,
       video_id TEXT,
+      conversation_id TEXT,
       text TEXT,
       read INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
@@ -156,6 +157,12 @@ export function ensureRelationalSchema(db: SqliteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
     CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
   `);
+  // Existing DBs created before conversation_id — add column if missing.
+  try {
+    db.exec(`ALTER TABLE notifications ADD COLUMN conversation_id TEXT`);
+  } catch {
+    // already present
+  }
 }
 
 function allRows<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): T[] {
@@ -348,6 +355,7 @@ export function loadFeedStoreFromTables(db: SqliteDatabase): FeedStoreData {
     actor_username: string;
     actor_avatar: string;
     video_id: string | null;
+    conversation_id: string | null;
     text: string | null;
     read: number;
     created_at: number;
@@ -365,6 +373,7 @@ export function loadFeedStoreFromTables(db: SqliteDatabase): FeedStoreData {
       actorUsername: row.actor_username,
       actorAvatar: row.actor_avatar,
       videoId: row.video_id ?? undefined,
+      conversationId: row.conversation_id ?? undefined,
       text: row.text ?? undefined,
       read: Boolean(row.read),
       createdAt: row.created_at,
@@ -577,8 +586,8 @@ export function saveFeedStoreToTables(db: SqliteDatabase, data: FeedStoreData) {
     const insertNotification = db.prepare(
       `INSERT INTO notifications (
         id, user_id, type, actor_id, actor_username, actor_avatar,
-        video_id, text, read, created_at, position
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        video_id, conversation_id, text, read, created_at, position
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     for (const [userId, list] of Object.entries(data.notificationsByUser)) {
       list.forEach((item, position) => {
@@ -590,6 +599,7 @@ export function saveFeedStoreToTables(db: SqliteDatabase, data: FeedStoreData) {
           item.actorUsername,
           item.actorAvatar,
           item.videoId ?? null,
+          item.conversationId ?? null,
           item.text ?? null,
           item.read ? 1 : 0,
           item.createdAt,
