@@ -108,10 +108,10 @@
 所有文件已创建完成，项目可以直接运行！
 
 运行命令：
-\`\`\`bash
+```bash
 npm install
 npm run dev
-\`\`\`
+```
 
 访问：http://localhost:3000
 

@@ -1,204 +1,191 @@
-# Short-Video Feed UI (TikTok-style) — 项目说明
+# Short-Video Feed UI — 项目说明
 
-一个精心打造的短视频"为你推荐"信息流网页克隆，展现前端技术：流畅的滚动自动播放/暂停、精致的微交互、无障碍控制、实时评论抽屉，以及性能和QoE监控。
+短视频「为你推荐」信息流网页应用：垂直全屏滚动、视口自动播放、微交互、键盘无障碍、评论抽屉，以及轻量 QoE 监控。
 
-> 60-90秒演示目标：完美的滑动/滚动体验、零卡顿、字幕切换、评论抽屉、点赞动画、键盘导航。
+> 演示目标：流畅滑动、字幕切换、评论抽屉、点赞动画、键盘导航。
 
----
-
-## ✨ 功能特性
-
-- **垂直信息流**（每个视口一个视频）配合**无限滚动**（游标分页）
-- **自动播放**：当视频≥70%可见时播放，离开视口时暂停；预加载前后视频源
-- **叠加UI**：创作者信息、标题、话题标签、音乐标签、点赞/评论/分享
-- **评论抽屉**（移动端底部抽屉，桌面端侧边栏）配合乐观更新
-- **双击点赞**动画、长按保存、**键盘快捷键**（J/K 上下切换、M 静音）
-- **字幕开关**、音量/静音、进度条、举报菜单（仅UI）
-- **无障碍**：焦点管理、ARIA、高对比度、支持`prefers-reduced-motion`
-- **调试面板**（通过`?debug=1`切换）：QoE + 性能计数器
+主入口文档见 [README.md](./README.md)。本文补充设计细节与实现要点。
 
 ---
 
-## 🗺️ 技术栈
+## 功能特性
 
-- **框架:** Next.js (App Router) + TypeScript
-- **UI:** Tailwind CSS + shadcn/ui
-- **状态/数据:** Zustand (全局UI状态), React Query (服务器数据)
-- **视频:** `<video>` + `IntersectionObserver` (或使用HLS时的`hls.js`)
-- **测试:** Vitest (单元测试), Playwright (E2E测试)
-- **性能/CI:** Lighthouse CI 配合性能预算
-- **分析:** 轻量级 QoE 日志记录器（自定义）
+- **垂直信息流**（每视口一个视频）+ **无限滚动**（游标分页）
+- **自动播放**：约 ≥70% 可见时播放，离开视口暂停；预加载相邻视频
+- **叠加 UI**：创作者信息、标题、话题、音乐标签、点赞 / 评论 / 分享 / 收藏
+- **评论抽屉**（移动端底部、桌面端侧栏）+ 乐观更新
+- **双击点赞**动画、**键盘快捷键**（含空格播放 / 暂停）
+- **字幕开关**、全局静音
+- **无障碍**：键盘遍历、ARIA、尊重 `prefers-reduced-motion`
+- **调试面板**（`?debug=1`）：QoE + 交互计数
+
+> 说明：进度条、长按保存、举报菜单、高对比度主题、HLS（`hls.js`）等在早期设计中提及，当前仓库尚未实现。
 
 ---
 
-## 🚀 快速开始
+## 技术栈
+
+- **框架:** Next.js 14（App Router）+ TypeScript
+- **UI:** Tailwind CSS + shadcn/ui 风格组件（`components/ui`）
+- **状态 / 数据:** Zustand（UI）、TanStack React Query（服务端）
+- **视频:** 原生 `<video>` + `IntersectionObserver`
+- **测试:** Vitest、Playwright
+- **性能 / CI:** Lighthouse CI（`npm run lhci`）
+- **分析:** 自定义 QoE 日志（内存 / 控制台，可 POST `/api/telemetry`）
+
+---
+
+## 快速开始
 
 ### 前置要求
 
-- Node ≥ 18, pnpm 或 npm
+- Node.js ≥ 18
+- npm 或 pnpm
 
-### 安装依赖
+### 安装与开发
 
-\`\`\`bash
-pnpm install
-# 或
+```bash
 npm install
-\`\`\`
-
-### 开发环境
-
-\`\`\`bash
-pnpm dev
+npm run dev
 # 访问 http://localhost:3000
-\`\`\`
+# 调试: http://localhost:3000?debug=1
+```
 
-### 构建和启动
+### 构建
 
-\`\`\`bash
-pnpm build && pnpm start
-\`\`\`
+```bash
+npm run build && npm run start
+```
 
-### 运行测试
+### 测试与检查
 
-\`\`\`bash
-# 单元测试
-pnpm test
+```bash
+npm run test
+npx playwright install   # 首次
+npm run e2e
+npm run lint && npm run typecheck
+npm run lhci
+```
 
-# E2E测试（有界面）
-pnpm e2e -- --headed
-
-# E2E测试（CI模式）
-pnpm e2e
-\`\`\`
-
-### 代码检查和类型检查
-
-\`\`\`bash
-pnpm lint && pnpm typecheck
-\`\`\`
-
-### Lighthouse CI
-
-\`\`\`bash
-pnpm lhci
-\`\`\`
+脚本名以 `package.json` 为准：`test`、`e2e`、`lhci`（不是 `test:e2e` / `lighthouse`）。
 
 ---
 
-## ⌨️ 键盘快捷键
+## 键盘快捷键
 
 | 按键 | 操作 |
 | --- | --- |
-| **J / 下箭头** | 下一个视频 |
-| **K / 上箭头** | 上一个视频 |
-| **M** | 静音/取消静音 |
+| **J / ↓** | 下一个视频 |
+| **K / ↑** | 上一个视频 |
+| **Space** | 播放 / 暂停 |
+| **M** | 静音 / 取消静音 |
 | **C** | 切换字幕 |
 | **/** | 聚焦评论输入框 |
 
 ---
 
-## 📦 项目结构
+## 项目结构
 
-\`\`\`
+```
 app/
-  (feed)/page.tsx           # 主信息流页面
+  page.tsx                    # 主信息流（首页）
+  (feed)/page.tsx             # 路由组内同构页面
   api/
-    videos/route.ts         # GET /api/videos?cursor&limit
-    videos/[id]/like/route.ts      # POST /api/videos/:id/like
-    videos/[id]/comments/route.ts  # GET /api/videos/:id/comments
+    videos/route.ts           # GET /api/videos?cursor&limit
+    videos/[id]/like/route.ts
+    videos/[id]/comments/route.ts
+    telemetry/route.ts        # POST /api/telemetry
 components/
-  VideoCard.tsx             # 视频卡片组件
-  ActionsBar.tsx            # 动作栏（点赞/评论/分享）
-  CommentsDrawer.tsx        # 评论抽屉
-  CaptionBadge.tsx          # 标题徽章
-  DebugPanel.tsx            # 调试面板
+  VideoCard.tsx
+  ActionsBar.tsx
+  CommentsDrawer.tsx
+  CaptionBadge.tsx
+  DebugPanel.tsx
+  ui/
 lib/
-  useAutoplay.ts            # 自动播放hook
-  usePrefetch.ts            # 预加载hook
-  qoe.ts                    # QoE日志记录器
-  keyboard.ts               # 键盘快捷键hook
-  api.ts                    # API调用辅助函数
-  store.ts                  # Zustand状态管理
+  useAutoplay.ts
+  usePrefetch.ts
+  qoe.ts
+  keyboard.ts
+  api.ts
+  store.ts
+  utils.ts
 public/
-  mock/seed.json            # 种子数据
-  posters/                  # 海报图片
-  avatars/                  # 头像图片
-  captions/                 # .vtt字幕文件
-\`\`\`
+  mock/seed.json
+  posters/                    # 本地海报（可选）
+  avatars/
+  captions/                   # .vtt（可选）
+```
 
 ---
 
-## 📈 性能目标
+## 性能目标
 
-* **TTI ≤ 1.5s** (3G Fast, 中端笔记本)
-* **CLS ≤ 0.02**
-* **p95 帧率下降 < 5%** (滚动时)
-* **视频首帧 ≤ 250ms** (进入视口后，配合预加载)
-* 初始路由的JS **< 200KB** (gzip后)
+- **TTI ≤ 1.5s**（3G Fast，中端设备）
+- **CLS ≤ 0.02**
+- **视频首帧 ≤ 250ms**（进入视口后，配合预加载）
+- 初始路由 JS **< 200KB**（gzip，见 `.lighthouserc.json`）
 
----
-
-## ♿ 无障碍功能
-
-* 完整的键盘遍历（可见焦点环）
-* ARIA标签在按钮、抽屉和播放器控件上
-* 尊重`prefers-reduced-motion`（淡入淡出代替缩放/滑动）
-* 高对比度主题选项
-* 通过`<track kind="captions">`支持字幕
+请用 `npm run lhci` 实测，勿将未复测的分数写死为「当前成绩」。
 
 ---
 
-## 📊 QoE & 遥测
+## 无障碍
 
-每个会话收集以下指标到内存存储/控制台（或POST到`/api/telemetry`）：
-
-* `ttff` (首帧时间)
-* `stallCount`, `stallDurationMs` (卡顿统计)
-* `framesDropped` (丢帧数)
-* `scrollNext`, `scrollPrev` (滚动次数)
-* `likeTapped`, `commentOpened`, `captionToggled` (交互统计)
-
-通过`?debug=1`启用调试叠加层。
+- 完整键盘操作与可见焦点
+- 按钮 / 抽屉等 ARIA 标签
+- `prefers-reduced-motion` 降级动画
+- `<track kind="captions">` 字幕（需提供 `.vtt` 且 seed 中配置路径）
 
 ---
 
-## 🧰 实现要点
+## QoE 与遥测
 
-* **自动播放:** 使用`IntersectionObserver`，阈值0.7；离开视口时暂停；进入交叉点时预加载前后视频
-* **预加载:** 为相邻项预热`<link rel="prefetch">`或`video.preload = 'metadata'`
-* **虚拟化:** 自然的"每视口一个"结构减少DOM大小；如需要可切换到虚拟列表
-* **乐观点赞:** 立即更新本地`stats.likes`和UI状态；服务器错误时回滚
-* **评论:** 乐观追加；使用`cursor`分页；大列表虚拟化
-* **状态:** UI状态存储在Zustand；服务器数据通过React Query，每个视频ID缓存键
+会话内收集（内存 / 控制台，并可上报）：
 
----
+- `ttff`（首帧时间）
+- `stallCount`、`stallDurationMs`
+- `framesDropped`
+- `scrollNext`、`scrollPrev`
+- `likeTapped`、`commentOpened`、`captionToggled`
 
-## 🔧 环境和配置
-
-* 可选: `NEXT_PUBLIC_CDN_ORIGIN` (当从CDN提供视频/海报时)
-* `public/mock/seed.json` 控制本地内容
-* 如果源是`.m3u8`，在`VideoCard.tsx`中启用`hls.js`切换到HLS
+`?debug=1` 打开调试叠加层。
 
 ---
 
-## 📝 开发说明
+## 实现要点
 
-1. 项目使用Next.js 14 App Router架构
-2. 所有客户端组件都标记为'use client'
-3. API路由在`app/api`目录下
-4. 使用React Query处理服务器状态管理
-5. Zustand用于客户端UI状态管理
-6. Tailwind CSS用于样式，shadcn/ui用于基础组件
+- **自动播放:** `IntersectionObserver`，threshold `0.7`；离开视口暂停；相邻预加载
+- **手动暂停:** `useRef` 记录用户暂停，避免与自动播放竞态
+- **预加载:** `usePrefetch` 预热相邻项
+- **乐观点赞 / 评论:** 先更新本地 UI，失败时回滚
+- **状态:** UI → Zustand；列表 / 评论 → React Query（按视频 ID 缓存）
 
 ---
 
-## 📄 许可证
+## 环境与内容
+
+- 可选: `NEXT_PUBLIC_CDN_ORIGIN`
+- 内容源: `public/mock/seed.json`
+- `posters/`、`avatars/`、`captions/` 当前多为占位目录；seed 中引用的本地资源需自行补齐，否则回退到远程视频 URL
+
+---
+
+## 文档
+
+- [README.md](./README.md) — 总览与快速开始
+- [QUICKSTART.md](./QUICKSTART.md)
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+- [COMMENT_GUIDE.md](./COMMENT_GUIDE.md)
+- [PAUSE_FEATURE_GUIDE.md](./PAUSE_FEATURE_GUIDE.md)
+- [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md)
+
+---
+
+## 许可证
 
 MIT
 
----
+## 致谢
 
-## 🙏 致谢
-
-此项目用于教育和展示目的。使用的示例视频来自公共资源。
-
+用于教育与展示。示例视频来自公开资源（如 Google sample bucket）。
